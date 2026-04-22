@@ -1,0 +1,42 @@
+slam_toolbox:
+  ros__parameters:
+    # 坐标系配置
+    map_frame: map
+    odom_frame: odom_combined
+    base_frame: base_footprint
+    scan_topic: /scan
+
+    # 激光雷达参数
+    max_laser_range: 25.0
+    min_laser_range: 0.2
+    use_sim_time: false
+
+    # 地图参数
+    resolution: 0.05         # 地图分辨率 (米/像素)
+    map_publish_period: 1.0 # 地图发布周期 (秒)
+
+    # 模式: mapping (建图) / localization (定位)
+    mode: mapping
+
+    # 匹配器参数
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_smear_deviation: 0.1
+
+    # 增加最小行程更新，只有机器人动了才更新地图，节省资源
+    minimum_time_interval: 0.2
+    minimum_travel_distance: 0.1
+    minimum_travel_heading: 0.1
+    
+    # 扫描匹配器参数
+    scan_matcher_score_threshold: 0.3
+
+    # 运动估计参数
+    motion_distortion_tolerance: 0.05
+
+    # 处理器参数
+    max_iterations: 20
+    tolerance: 0.0001
+
+    # 日志级别
+    log_level: info

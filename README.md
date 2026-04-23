@@ -346,6 +346,9 @@ ll /dev | grep ttyCH343USB*
 # 建图节点
 ros2 launch origincar_slam slam.launch.py
 
+# 摄像头节点
+ros2 launch origincar_bringup usb_websocket_display.launch.py
+
 # 键盘控制节点
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 

@@ -21,7 +21,7 @@ slam_toolbox:
     odom_frame: odom_combined
     base_frame: base_footprint
     scan_topic: /scan
-    use_map_saver: true                                   # 是否启用地图保存服务
+    use_map_saver: true                                   # 是否启用地图保存服务：用于提供地图保存能力
     transform_publish_period: 0.02                        # 坐标变换发布周期（秒）：如果设为0则不发布里程计数据
     
     # 模式: mapping (建图) / localization (定位)
@@ -31,7 +31,7 @@ slam_toolbox:
     # 激光雷达参数 
     max_laser_range: 25.0                                 # 激光雷达最大有效距离（米）：用于图像光栅化处理
     min_laser_range: 0.21                                 # 激光雷达最小有效距离（米）：用于图像光栅化处理
-    use_sim_time: false          
+    use_sim_time: false                                   # 是否使用仿真时间：仿真环境请设为 true
     
     throttle_scans: 1                                     # 扫描节流：设置为1表示处理每一帧，设置为2表示每两帧处理一帧       
     occupancy_threshold: 0.1                              # 占据阈值：栅格被视为障碍物的概率阈值   
@@ -40,7 +40,6 @@ slam_toolbox:
     resolution: 0.05                                      # 地图分辨率 (米/像素)
     map_publish_period: 1.0                               # 地图发布周期 (秒)
     map_update_interval: 5.0                              # 地图更新间隔（秒）：控制栅格地图更新的频率
-    resolution: 0.05                                      # 地图分辨率（米/像素）：0.05代表5厘米一个像素点
     
     transform_timeout: 0.2                                # 坐标变换超时时间（秒）
     tf_buffer_duration: 30.                               # TF缓冲区持续时间（秒）：用于存储坐标变换历史
@@ -48,16 +47,16 @@ slam_toolbox:
     enable_interactive_mode: true                         # 是否启用交互模式：允许通过Rviz工具手动修正位姿图
 
     # 通用参数
-    use_scan_matching: true                               # 是否启用扫描匹配
-    use_scan_barycenter: true                             # 是否使用扫描质心参与匹配
-    scan_buffer_size: 10                                  # 扫描缓冲区大小（帧）
-    scan_buffer_maximum_scan_distance: 10.0               # 扫描缓冲关联的最大距离（米）
-    link_match_minimum_response_fine: 0.1                 # 建立链接时精匹配最小响应阈值
-    link_scan_maximum_distance: 1.5                       # 建立扫描链接的最大距离（米）
+    use_scan_matching: true                               # 是否启用扫描匹配：用于根据激光数据优化位姿
+    use_scan_barycenter: true                             # 是否使用扫描质心：用于提升匹配稳定性
+    scan_buffer_size: 10                                  # 扫描缓冲区大小（帧）：用于回环与关联计算
+    scan_buffer_maximum_scan_distance: 10.0               # 扫描缓冲最大距离（米）：超过该距离不参与缓冲关联
+    link_match_minimum_response_fine: 0.1                 # 链接精匹配最小响应阈值：用于判断是否建立链接
+    link_scan_maximum_distance: 1.5                       # 建立扫描链接最大距离（米）
     loop_search_maximum_distance: 3.0                     # 回环搜索最大距离（米）
-    do_loop_closing: true                                 # 是否启用回环闭合
+    do_loop_closing: true                                 # 是否启用回环闭合：用于全局一致性优化
     loop_match_minimum_chain_size: 10                     # 回环匹配最小链长度
-    loop_match_maximum_variance_coarse: 3.0               # 回环粗匹配允许的最大方差
+    loop_match_maximum_variance_coarse: 3.0               # 回环粗匹配最大方差
     loop_match_minimum_response_coarse: 0.35              # 回环粗匹配最小响应阈值
     loop_match_minimum_response_fine: 0.45                # 回环精匹配最小响应阈值
 
@@ -78,24 +77,24 @@ slam_toolbox:
     minimum_travel_heading: 0.2                           # 最小旋转角度（弧度）：旋转超过此角度才处理新扫描
     
     # 扫描匹配器参数 
-    scan_matcher_score_threshold: 0.3
+    scan_matcher_score_threshold: 0.3                     # 扫描匹配得分阈值：低于该值的结果将被抑制
     distance_variance_penalty: 0.5                        # 距离方差惩罚：位姿偏离里程计预测距离时的惩罚权重
     angle_variance_penalty: 1.0                           # 角度方差惩罚：位姿偏离里程计预测角度时的惩罚权重
     fine_search_angle_offset: 0.00349                     # 精匹配角度搜索偏移（弧度）
     coarse_search_angle_offset: 0.349                     # 粗匹配角度搜索偏移（弧度）
     coarse_angle_resolution: 0.0349                       # 粗匹配角度分辨率（弧度）
-    minimum_angle_penalty: 0.9                            # 角度偏差最小惩罚系数
-    minimum_distance_penalty: 0.5                         # 距离偏差最小惩罚系数
-    use_response_expansion: true                          # 是否启用响应扩展
-    min_pass_through: 2                                   # 最小通过次数阈值
+    minimum_angle_penalty: 0.9                            # 最小角度惩罚系数：用于约束角度偏差
+    minimum_distance_penalty: 0.5                         # 最小距离惩罚系数：用于约束距离偏差
+    use_response_expansion: true                          # 是否启用响应扩展：用于改善匹配鲁棒性
+    min_pass_through: 2                                   # 最小通过次数：低于该值的候选将被过滤
     
     # 运动估计参数 
-    motion_distortion_tolerance: 0.05
+    motion_distortion_tolerance: 0.05                     # 运动畸变容忍度：用于补偿扫描期间的运动误差
 
     # 处理器参数 
-    max_iterations: 20
-    tolerance: 0.0001
+    max_iterations: 20                                    # 优化最大迭代次数
+    tolerance: 0.0001                                     # 优化收敛阈值
 
     # 日志级别 
-    debug_logging: false            # 是否启用调试日志输出
-    log_level: info
+    debug_logging: false                                  # 是否启用调试日志输出
+    log_level: info                                       # 日志等级

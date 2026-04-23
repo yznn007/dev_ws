@@ -1,42 +1,101 @@
 slam_toolbox:
   ros__parameters:
+    # Plugin params
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+    
+    # 如果你希望在给定的位姿或 dock(地图原点) 位置立即开始继续使用一张地图，
+    # map_file_name: test_steve
+    
+    # 以下两个参数二选一
+    # map_start_pose: [0.0, 0.0, 0.0]                     # 指定机器人加载地图后，在地图坐标系下的初始位置 [x, y, yaw]
+    # map_start_at_dock: true                             # 若为 true，机器人位于地图原点 [0, 0, 0] 启动。
+    
+    
     # 坐标系配置
     map_frame: map
     odom_frame: odom_combined
     base_frame: base_footprint
     scan_topic: /scan
-
-    # 激光雷达参数
-    max_laser_range: 25.0
-    min_laser_range: 0.2
-    use_sim_time: false
-
-    # 地图参数
-    resolution: 0.05         # 地图分辨率 (米/像素)
-    map_publish_period: 1.0 # 地图发布周期 (秒)
-
+    use_map_saver: true                                   # 是否启用地图保存服务
+    transform_publish_period: 0.02                        # 坐标变换发布周期（秒）：如果设为0则不发布里程计数据
+    
     # 模式: mapping (建图) / localization (定位)
     mode: mapping
+    # mode: localization 
 
-    # 匹配器参数
-    correlation_search_space_dimension: 0.5
-    correlation_search_space_resolution: 0.01
-    correlation_search_space_smear_deviation: 0.1
-
-    # 增加最小行程更新，只有机器人动了才更新地图，节省资源
-    minimum_time_interval: 0.2
-    minimum_travel_distance: 0.1
-    minimum_travel_heading: 0.1
+    # 激光雷达参数 
+    max_laser_range: 25.0                                 # 激光雷达最大有效距离（米）：用于图像光栅化处理
+    min_laser_range: 0.21                                 # 激光雷达最小有效距离（米）：用于图像光栅化处理
+    use_sim_time: false          
     
-    # 扫描匹配器参数
-    scan_matcher_score_threshold: 0.3
+    throttle_scans: 1                                     # 扫描节流：设置为1表示处理每一帧，设置为2表示每两帧处理一帧       
+    occupancy_threshold: 0.1                              # 占据阈值：栅格被视为障碍物的概率阈值   
+    
+    # 地图参数 
+    resolution: 0.05                                      # 地图分辨率 (米/像素)
+    map_publish_period: 1.0                               # 地图发布周期 (秒)
+    map_update_interval: 5.0                              # 地图更新间隔（秒）：控制栅格地图更新的频率
+    resolution: 0.05                                      # 地图分辨率（米/像素）：0.05代表5厘米一个像素点
+    
+    transform_timeout: 0.2                                # 坐标变换超时时间（秒）
+    tf_buffer_duration: 30.                               # TF缓冲区持续时间（秒）：用于存储坐标变换历史
+    stack_size_to_use: 40000000                           # 允许使用的栈大小：序列化大型地图时需要更大的栈内存
+    enable_interactive_mode: true                         # 是否启用交互模式：允许通过Rviz工具手动修正位姿图
 
-    # 运动估计参数
+    # 通用参数
+    use_scan_matching: true                               # 是否启用扫描匹配
+    use_scan_barycenter: true                             # 是否使用扫描质心参与匹配
+    scan_buffer_size: 10                                  # 扫描缓冲区大小（帧）
+    scan_buffer_maximum_scan_distance: 10.0               # 扫描缓冲关联的最大距离（米）
+    link_match_minimum_response_fine: 0.1                 # 建立链接时精匹配最小响应阈值
+    link_scan_maximum_distance: 1.5                       # 建立扫描链接的最大距离（米）
+    loop_search_maximum_distance: 3.0                     # 回环搜索最大距离（米）
+    do_loop_closing: true                                 # 是否启用回环闭合
+    loop_match_minimum_chain_size: 10                     # 回环匹配最小链长度
+    loop_match_maximum_variance_coarse: 3.0               # 回环粗匹配允许的最大方差
+    loop_match_minimum_response_coarse: 0.35              # 回环粗匹配最小响应阈值
+    loop_match_minimum_response_fine: 0.45                # 回环精匹配最小响应阈值
+
+    
+    # 匹配器参数 
+    correlation_search_space_dimension: 0.5               # 搜索空间维度（米）：在当前位置 0.5m 范围内搜索
+    correlation_search_space_resolution: 0.01             # 搜索空间分辨率（米）：搜索时的网格精度为 1cm
+    correlation_search_space_smear_deviation: 0.1         # 涂抹标准差：用于平滑概率分布，防止局部最优
+
+    # 回环检测参数 (用于全局匹配)
+    loop_search_space_dimension: 8.0                       # 回环搜索维度（米）：回环时在 8m 范围内大范围搜索
+    loop_search_space_resolution: 0.05                     # 回环搜索分辨率（米）：回环搜索精度为 5cm
+    loop_search_space_smear_deviation: 0.03                # 回环涂抹标准差
+    
+    # 只有机器人动了才更新地图，节省资源 
+    minimum_time_interval: 0.5                            # 两次扫描处理之间的最小时间间隔（秒）
+    minimum_travel_distance: 0.2                          # 最小移动距离（米）：移动超过此距离才处理新扫描
+    minimum_travel_heading: 0.2                           # 最小旋转角度（弧度）：旋转超过此角度才处理新扫描
+    
+    # 扫描匹配器参数 
+    scan_matcher_score_threshold: 0.3
+    distance_variance_penalty: 0.5                        # 距离方差惩罚：位姿偏离里程计预测距离时的惩罚权重
+    angle_variance_penalty: 1.0                           # 角度方差惩罚：位姿偏离里程计预测角度时的惩罚权重
+    fine_search_angle_offset: 0.00349                     # 精匹配角度搜索偏移（弧度）
+    coarse_search_angle_offset: 0.349                     # 粗匹配角度搜索偏移（弧度）
+    coarse_angle_resolution: 0.0349                       # 粗匹配角度分辨率（弧度）
+    minimum_angle_penalty: 0.9                            # 角度偏差最小惩罚系数
+    minimum_distance_penalty: 0.5                         # 距离偏差最小惩罚系数
+    use_response_expansion: true                          # 是否启用响应扩展
+    min_pass_through: 2                                   # 最小通过次数阈值
+    
+    # 运动估计参数 
     motion_distortion_tolerance: 0.05
 
-    # 处理器参数
+    # 处理器参数 
     max_iterations: 20
     tolerance: 0.0001
 
-    # 日志级别
+    # 日志级别 
+    debug_logging: false            # 是否启用调试日志输出
     log_level: info

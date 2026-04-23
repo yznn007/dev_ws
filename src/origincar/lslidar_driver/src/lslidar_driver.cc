@@ -526,7 +526,7 @@ namespace lslidar_driver
 				}
 			}
 		}
-		RCLCPP_INFO(this->get_logger(), "Initialised lslidar without error");
+		RCLCPP_INFO(this->get_logger(), "Initialised lslidar Successfully");
 		return true;
 	}
 

@@ -11,7 +11,7 @@
     angle_disable_min: 0.0                                  #角度裁剪开始值
     angle_disable_max: 0.0                                  #角度裁剪结束值
     min_range: 0.2                                          #雷达接收距离最小值
-    max_range: 200.0                                        #雷达接收距离最大值
+    max_range: 25.0                                        #雷达接收距离最大值
     use_gps_ts: false                                       #雷达是否使用GPS授时
     scan_topic: /scan                                       #设置激光数据topic名称
     interface_selection: serial                             #接口选择:net 为网口,serial 为串口。

@@ -343,6 +343,13 @@ ros2 topic list
 # 检查N10激光雷达硬件设备
 ll /dev | grep ttyCH343USB*
 
-#地图保存
+# 建图节点
+ros2 launch origincar_slam slam.launch.py
+
+# 键盘控制节点
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+
+# 地图保存
 ros2 run nav2_map_server map_saver_cli -f ~/dev_ws/src/origincar/origincar_slam/map/map
+
 ```

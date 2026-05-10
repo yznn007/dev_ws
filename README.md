@@ -2,7 +2,7 @@
 
 ## 1) 项目简介
 
-本仓库是基于 ROS 2 Humble 的小车工作空间，包含底盘串口驱动、雷达驱动、SLAM 启动、机器人模型与自定义消息。
+本仓库是基于 ROS 2 Humble 的小车工作空间，包含底盘串口驱动、雷达驱动、SLAM/导航启动、机器人模型、自定义消息与导航相关第三方源码包。
 
 - 工作空间路径：`/home/sunrise/dev_ws`
 - 源码主路径：`/home/sunrise/dev_ws/src/origincar`
@@ -69,7 +69,7 @@ echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 echo "source /home/sunrise/dev_ws/install/setup.bash" >> ~/.bashrc
 ```
 
-## 3) 常用启动（底盘/雷达/SLAM）
+## 3) 常用启动（底盘/雷达/SLAM/导航）
 
 执行前先加载环境：
 
@@ -138,6 +138,14 @@ ros2 launch origincar_slam slam.launch.py
 ros2 launch origincar_slam slam.launch.py enable_teleop:=false
 ```
 
+### 3.4 导航启动
+
+```bash
+ros2 launch origincar_nav navigation.launch.py
+```
+
+该启动会拉起底盘、雷达和 Nav2，默认地图为 `origincar_slam/map/map.yaml`，默认参数为 `origincar_nav/config/nav2_params.yaml`。
+
 ## 4) 工作空间结构
 
 ```text
@@ -146,12 +154,15 @@ dev_ws/
 │   └── origincar/
 │       ├── 3rdparty/
 │       │   ├── ackermann_msgs-ros2/
-│       │   └── serial_ros2/
+│       │   ├── costmap_converter/
+│       │   ├── serial_ros2/
+│       │   └── teb_local_planner/
 │       ├── lslidar_driver/
 │       ├── lslidar_msgs/
 │       ├── origincar_base/
 │       ├── origincar_bringup/
 │       ├── origincar_description/
+│       ├── origincar_nav/
 │       ├── origincar_msg/
 │       └── origincar_slam/
 ├── build/
@@ -166,6 +177,7 @@ dev_ws/
 |---|---|---|---|
 | `origincar_base` | `src/origincar/origincar_base` | `ament_cmake` | 底盘串口通信、里程计/IMU发布、速度控制 |
 | `origincar_slam` | `src/origincar/origincar_slam` | `ament_cmake` | 建图启动与参数 |
+| `origincar_nav` | `src/origincar/origincar_nav` | `ament_cmake` | Nav2 导航启动、参数与行为树 |
 | `lslidar_driver` | `src/origincar/lslidar_driver` | `ament_cmake` | 雷神雷达驱动节点 |
 | `lslidar_msgs` | `src/origincar/lslidar_msgs` | `ament_cmake` | 雷达消息定义 |
 | `origincar_description` | `src/origincar/origincar_description` | `ament_cmake` | 机器人模型与 RViz 配置 |
@@ -173,6 +185,8 @@ dev_ws/
 | `origincar_bringup` | `src/origincar/origincar_bringup` | `ament_cmake` | USB/Websocket 组合启动（依赖仓库外 Hobot 包） |
 | `ackermann_msgs` | `src/origincar/3rdparty/ackermann_msgs-ros2` | `ament_cmake` | Ackermann 控制消息 |
 | `serial` | `src/origincar/3rdparty/serial_ros2` | `ament_cmake` | 串口通信库 |
+| `teb_local_planner` / `teb_msgs` | `src/origincar/3rdparty/teb_local_planner` | `ament_cmake` | Nav2 使用的 TEB 控制器及消息 |
+| `costmap_converter` / `costmap_converter_msgs` | `src/origincar/3rdparty/costmap_converter` | `ament_cmake` | TEB 相关 costmap 转换插件及消息 |
 
 `origincar_bringup` 的 `usb_websocket_display.launch.py` 依赖外部包（例如 `hobot_usb_cam`、`hobot_codec`、`dnn_node_example`、`websocket`），缺少这些包时该启动不可用。
 
@@ -204,7 +218,7 @@ dev_ws/
 
 注意：底盘、雷达、SLAM 的坐标系命名必须一致，否则会出现 TF 不连通或定位异常。
 
-## 7) 关键配置（串口、雷达参数、SLAM 参数）
+## 7) 关键配置（串口、雷达、SLAM、导航参数）
 
 ### 7.1 串口与底盘参数
 
@@ -261,6 +275,26 @@ SLAM 参数文件：
 - `base_frame`
 - `scan_topic`
 - `resolution`
+
+### 7.4 导航参数
+
+导航启动文件：
+
+- `src/origincar/origincar_nav/launch/navigation.launch.py`
+
+导航参数文件：
+
+- `src/origincar/origincar_nav/config/nav2_params.yaml`
+
+默认行为树：
+
+- `src/origincar/origincar_nav/behavior_trees/navigate_to_pose_ackermann.xml`
+
+默认地图：
+
+- `src/origincar/origincar_slam/map/map.yaml`
+
+注意：导航参数中的 `/scan`、`odom_combined`、`base_footprint` 需要与底盘、雷达、SLAM 配置保持一致。
 
 ## 8) 常见故障（串口、/scan、依赖缺失、tf2_tools）
 
@@ -319,6 +353,9 @@ sudo apt install -y ros-humble-tf2-tools
 ## 9) 常用命令速查
 
 ```bash
+# ssh连接
+ssh -Y sunrise@192.168.31.181
+
 # 进入工作空间
 cd ~/dev_ws
 
@@ -326,12 +363,16 @@ cd ~/dev_ws
 source /opt/ros/humble/setup.bash
 
 # 构建所有功能包
-colcon build 
-# 构建单个功能包
-colcon build --packages-select <功能包>  
+colcon build --symlink-install --base-paths src/origincar
+
+# 构建单个功能包及依赖
+colcon build --symlink-install --base-paths src/origincar --packages-up-to <功能包>
 
 # 构建后加载 overlay
 source ~/dev_ws/install/setup.bash
+
+
+source ~/.bashrc
 
 # 查看包
 colcon list --base-paths src/origincar
@@ -343,16 +384,28 @@ ros2 topic list
 # 检查N10激光雷达硬件设备
 ll /dev | grep ttyCH343USB*
 
+# 代理设置,将 Proxy 行注释掉即可
+nano ~/.bashrc
+nano ~/.ssh/config
+
+# 测试分布式通信
+ros2 run demo_nodes_cpp talker
+ros2 run demo_nodes_py listener
+
 # 建图节点
 ros2 launch origincar_slam slam.launch.py
 
 # 摄像头节点
 ros2 launch origincar_bringup usb_websocket_display.launch.py
-
+192.168.31.181:8000
+# 底盘节点
+ros2 launch origincar_base origincar_bringup.launch.py    
 # 键盘控制节点
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 # 地图保存
 ros2 run nav2_map_server map_saver_cli -f ~/dev_ws/src/origincar/origincar_slam/map/map
 
+# 导航节点
+ros2 launch origincar_nav navigation.launch.py
 ```

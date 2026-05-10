@@ -139,7 +139,7 @@ controller_server:
       stateful: true                        # 是否保持状态。
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.10               # 目标XY位置容差(米)。推荐值: 0.1-0.2。
-      yaw_goal_tolerance: 0.3             # 目标航向角容差(弧度)。推荐值: 0.15。
+      yaw_goal_tolerance: 0.3               # 目标航向角容差(弧度)。推荐值: 0.15。
 
     # ----------------------------------------------------------------------
     # FollowPath: 当前启用 TEB (Timed Elastic Band) 局部规划器。
@@ -167,7 +167,7 @@ controller_server:
       max_vel_x: 0.4                        # 最大前进速度(m/s)。
       max_vel_x_backwards: 0.1              # 最大倒车速度(m/s)。
       max_vel_y: 0.0                        # 横向速度。阿克曼必须为 0。
-      max_vel_theta: 1.0                    # 最大角速度(rad/s)，配合 min_turning_radius 形成转弯约束。
+      max_vel_theta: 1.5                    # 最大角速度(rad/s)，配合 min_turning_radius 形成转弯约束。
       acc_lim_x: 0.5                        # 线加速度上限(m/s^2)。
       acc_lim_theta: 1.0                    # 角加速度上限(rad/s^2)。
       min_turning_radius: 0.4               # 最小转弯半径(米)，必须与硬件一致 / 与全局规划器同步。
@@ -178,7 +178,7 @@ controller_server:
       # ---- Goal Tolerance ----
       xy_goal_tolerance: 0.10               # 位置容差(米)。与 general_goal_checker 保持一致。
       yaw_goal_tolerance: 0.3               # 航向容差(弧度)。
-      free_goal_vel: false                  # 是否允许到达终点时仍有速度。
+      free_goal_vel: true                   # 是否允许到达终点时仍有速度。
 
       # ---- Obstacles ----
       min_obstacle_dist: 0.15               # 与障碍物最小距离(米)。考虑车体外形+冗余。

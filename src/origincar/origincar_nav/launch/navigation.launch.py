@@ -15,8 +15,8 @@ def generate_launch_description():
     lidar_pkg_dir = get_package_share_directory('lslidar_driver')
     nav2_pkg_dir = get_package_share_directory('nav2_bringup')
     
-#    default_map = os.path.join(slam_pkg_dir, 'map', 'map.1.yaml')
-    default_map = os.path.join(slam_pkg_dir, 'map', 'map.yaml')
+#    default_map = os.path.join(slam_pkg_dir, 'map', 'map_v0.0.yaml')
+    default_map = os.path.join(slam_pkg_dir, 'map', 'map_test.yaml')
     default_params = os.path.join(nav_pkg_dir, 'config', 'nav2_params.yaml')
     default_bt_nav_to_pose = os.path.join(
         nav_pkg_dir,

@@ -19,7 +19,7 @@
 - `origincar_base/launch/origincar_bringup.launch.py` 会包含 `base_serial.launch.py`、模型发布、`imu_filter_madgwick_node` 和 EKF；`carto_slam:=true` 时跳过 EKF。
 - `lslidar_driver`：雷达可执行文件 `lslidar_driver_node`；N10 串口启动 `launch/lsn10_launch.py` 使用 `params/lidar_uart_ros2/lsn10.yaml`。
 - `origincar_slam/launch/slam.launch.py` 直接拉起雷达、`origincar_base` bringup、`slam_toolbox` 和默认开启的 `teleop_twist_keyboard`；可用 `enable_teleop:=false` 关闭键盘节点。
-- `origincar_nav/launch/navigation.launch.py` 直接拉起底盘、雷达和 `nav2_bringup`，默认地图来自 `origincar_slam/map/map.yaml`，参数是 `origincar_nav/config/nav2_params.yaml`。
+- `origincar_nav/launch/navigation.launch.py` 直接拉起底盘、雷达和 `nav2_bringup`，默认地图来自 `origincar_slam/map/map_test.yaml`，参数是 `origincar_nav/config/nav2_params.yaml`。
 - `origincar_description` 的 ROS 2 入口是 `launch/display.launch.py`；同目录还有旧式 `.launch` 文件，不要误当 ROS 2 Python launch。
 - 接口包：`origincar_msg`、`lslidar_msgs`、`ackermann_msgs`、`teb_msgs`、`costmap_converter_msgs`。
 - 第三方源码包：`serial`、`teb_local_planner`、`costmap_converter`；Nav2 参数依赖 TEB/Costmap converter 相关包。

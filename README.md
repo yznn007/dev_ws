@@ -144,7 +144,7 @@ ros2 launch origincar_slam slam.launch.py enable_teleop:=false
 ros2 launch origincar_nav navigation.launch.py
 ```
 
-该启动会拉起底盘、雷达和 Nav2，默认地图为 `origincar_slam/map/map.yaml`，默认参数为 `origincar_nav/config/nav2_params.yaml`。
+该启动会拉起底盘、雷达和 Nav2，默认地图为 `origincar_slam/map/map_test.yaml`，默认参数为 `origincar_nav/config/nav2_params.yaml`。
 
 ## 4) 工作空间结构
 
@@ -292,7 +292,7 @@ SLAM 参数文件：
 
 默认地图：
 
-- `src/origincar/origincar_slam/map/map.yaml`
+- `src/origincar/origincar_slam/map/map_test.yaml`
 
 注意：导航参数中的 `/scan`、`odom_combined`、`base_footprint` 需要与底盘、雷达、SLAM 配置保持一致。
 
@@ -404,7 +404,7 @@ ros2 launch origincar_base origincar_bringup.launch.py
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 # 地图保存
-ros2 run nav2_map_server map_saver_cli -f ~/dev_ws/src/origincar/origincar_slam/map/map
+ros2 run nav2_map_server map_saver_cli -f ~/dev_ws/src/origincar/origincar_slam/map/map_test
 
 # 导航节点
 ros2 launch origincar_nav navigation.launch.py

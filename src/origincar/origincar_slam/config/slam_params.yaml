@@ -29,7 +29,7 @@ slam_toolbox:
     # mode: localization 
 
     # 激光雷达参数 
-    max_laser_range: 25.0                                 # 激光雷达最大有效距离（米）：用于图像光栅化处理
+    max_laser_range: 20.0                                 # 激光雷达最大有效距离（米）：用于图像光栅化处理
     min_laser_range: 0.21                                 # 激光雷达最小有效距离（米）：用于图像光栅化处理
     use_sim_time: false                                   # 是否使用仿真时间：仿真环境请设为 true
     

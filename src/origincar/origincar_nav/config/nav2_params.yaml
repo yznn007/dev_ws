@@ -1,55 +1,63 @@
+# ==============================================================================
+# AMCL 模块：自适应蒙特卡洛定位。
+# 作用：基于激光雷达和里程计，在全局地图中估计机器人位姿(发布 map -> odom TF)。
+# ==============================================================================
 amcl:
   ros__parameters:
-    use_sim_time: false
-    alpha1: 0.2
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.2
-    alpha5: 0.2
-    base_frame_id: "base_footprint"
-    beam_skip_distance: 0.5
-    beam_skip_error_threshold: 0.9
-    beam_skip_threshold: 0.3
-    do_beamskip: false
-    global_frame_id: "map"
-    lambda_short: 0.1
-    laser_likelihood_max_dist: 2.0
-    laser_max_range: 25.0
-    laser_min_range: 0.2
-    laser_model_type: "likelihood_field"
-    max_beams: 90
-    max_particles: 2000
-    min_particles: 500
-    odom_frame_id: "odom_combined"
-    pf_err: 0.05
-    pf_z: 0.99
-    recovery_alpha_fast: 0.0
-    recovery_alpha_slow: 0.0
-    resample_interval: 1
-    robot_model_type: "nav2_amcl::DifferentialMotionModel"
-    save_pose_rate: 0.5
-    sigma_hit: 0.2
-    tf_broadcast: true
-    transform_tolerance: 0.5
-    update_min_a: 0.2
-    update_min_d: 0.2
-    z_hit: 0.5
-    z_max: 0.05
-    z_rand: 0.5
-    z_short: 0.05
-    scan_topic: /scan
+    use_sim_time: false                     # 是否使用仿真时间。实体机设false，仿真设true。
+    alpha1: 0.2                             # 旋转引起的旋转误差。推荐值: 0.1-0.2。
+    alpha2: 0.4                             # 平移引起的旋转误差。推荐值: 0.2-0.4 (阿克曼底盘平移常伴随旋转)。
+    alpha3: 0.2                             # 平移引起的平移误差。推荐值: 0.1-0.2。
+    alpha4: 0.2                             # 旋转引起的平移误差。推荐值: 0.1-0.2。
+    alpha5: 0.1                             # 平移引起的平移误差(全向轮模型)。阿克曼底盘通常无需关注。
+    base_frame_id: "base_footprint"         # 机器人底盘坐标系。推荐值: base_footprint 或 base_link。
+    beam_skip_distance: 0.5                 # 忽略雷达光束的距离阈值(米)。推荐值: 0.5。
+    beam_skip_error_threshold: 0.9          # 光束跳过的未匹配比例阈值。推荐值: 0.9。
+    beam_skip_threshold: 0.3                # 强制跳过的有效光束比例阈值。推荐值: 0.3。
+    do_beamskip: true                       # 启用光束跳过机制(过滤动态物体)。推荐值: true。
+    global_frame_id: "map"                  # 全局地图坐标系。推荐值: map。
+    lambda_short: 0.1                       # z_short的指数衰减参数。推荐值: 0.1。
+    laser_likelihood_max_dist: 2.0          # 似然场模型最大计算距离(米)。推荐值: 2.0。
+    laser_max_range: 8.0                    # 参与计算的最大雷达距离(米)。根据雷达硬件设定。
+    laser_min_range: 0.21                   # 参与计算的最小雷达距离(米)。根据车体遮挡及雷达盲区设定。
+    laser_model_type: "likelihood_field"    # 雷达观测模型类型。推荐值: likelihood_field。
+    max_beams: 90                           # 每次更新的最大激光束数。推荐值: 60-100。
+    max_particles: 2000                     # 粒子滤波器最大粒子数。推荐值: 2000-5000。
+    min_particles: 500                      # 粒子滤波器最小粒子数。推荐值: 500-1000。
+    odom_frame_id: "odom_combined"          # 里程计坐标系。推荐值: odom_combined 或 odom。
+    pf_err: 0.05                            # 粒子重采样的容忍误差。推荐值: 0.05。
+    pf_z: 0.99                              # 粒子重采样的分布分位数。建议保持默认。
+    recovery_alpha_fast: 0.1                # 判定"定位丢失"的快速衰减率。推荐值: 0.1。
+    recovery_alpha_slow: 0.001              # 判定"定位丢失"的慢速衰减率。推荐值: 0.001。
+    resample_interval: 1                    # 触发重采样的滤波更新频次。推荐值: 1或2。
+    robot_model_type: "nav2_amcl::DifferentialMotionModel" # 运动学模型。通常用差速模型替代阿克曼模型。
+    save_pose_rate: 0.5                     # 位姿存入参数服务器的频率(Hz)。推荐值: 0.5。
+    sigma_hit: 0.1                          # 命中模型标准差(米)。推荐值: 0.1-0.2。
+    tf_broadcast: true                      # 是否发布 map->odom 坐标转换。推荐值: true。
+    transform_tolerance: 0.5                # TF坐标变换时间戳同步容差(秒)。推荐值: 0.2-0.5。
+    update_min_a: 0.1                       # 触发更新的最小自转角度(弧度)。推荐值: 0.1-0.2。
+    update_min_d: 0.1                       # 触发更新的最小移动距离(米)。推荐值: 0.1-0.2。
+    z_hit: 0.5                              # 匹配已知静态障碍物的概率权重。推荐值: 0.5-0.9。
+    z_max: 0.05                             # 匹配最大量程的概率权重。推荐值: 0.05。
+    z_rand: 0.5                             # 遇到未知障碍(随机噪声)的概率权重。推荐值: 0.05-0.5。
+    z_short: 0.05                           # 遇到较短非预期障碍的概率权重。推荐值: 0.05-0.1。
+    scan_topic: /scan                       # 雷达数据话题。推荐值: /scan。
 
+# ==============================================================================
+# BT Navigator 模块：行为树导航器。
+# 作用：导航系统的高层状态机，负责任务路由、动作编排和行为树调度。
+# ==============================================================================
 bt_navigator:
   ros__parameters:
-    use_sim_time: false
-    global_frame: map
-    robot_base_frame: base_footprint
-    odom_topic: /odom_combined
-    bt_loop_duration: 10
-    default_server_timeout: 20
-    wait_for_service_timeout: 1000
-    default_nav_to_pose_bt_xml: ""
-    plugin_lib_names:
+    use_sim_time: false                     # 是否使用仿真时间。实体机为false。
+    global_frame: map                       # 全局坐标系。推荐值: map。
+    robot_base_frame: base_footprint        # 机器人基底坐标系。推荐值: base_footprint。
+    odom_topic: /odom_combined              # 里程计话题。推荐值: /odom_combined。
+    bt_loop_duration: 10                    # 行为树单次执行周期(毫秒)。推荐值: 10。
+    default_server_timeout: 30              # 动作服务端请求超时(毫秒)。推荐值: 20-50。
+    wait_for_service_timeout: 1000          # 启动时等待服务就绪的超时时间(毫秒)。推荐值: 1000。
+    default_nav_to_pose_bt_xml: "/home/sunrise/dev_ws/src/origincar/origincar_nav/behavior_trees/navigate_to_pose_ackermann.xml" # 默认单点导航行为树配置文件路径。
+    plugin_lib_names:                       # 加载的行为树节点插件列表。
       - nav2_compute_path_to_pose_action_bt_node
       - nav2_compute_path_through_poses_action_bt_node
       - nav2_smooth_path_action_bt_node
@@ -98,120 +106,228 @@ bt_navigator:
       - nav2_drive_on_heading_cancel_bt_node
       - nav2_is_battery_charging_condition_bt_node
 
-bt_navigator_navigate_through_poses_rclcpp_node:
+bt_navigator_navigate_through_poses_rclcpp_node:                   # 多点导航节点参数。
   ros__parameters:
     use_sim_time: false
 
-bt_navigator_navigate_to_pose_rclcpp_node:
+bt_navigator_navigate_to_pose_rclcpp_node:                         # 单点导航节点参数。
   ros__parameters:
     use_sim_time: false
 
+# ==============================================================================
+# Controller Server 模块：局部路径跟随控制器。
+# 作用：将全局路径转换为底盘控制指令，实现循迹和避障。
+# ==============================================================================
 controller_server:
   ros__parameters:
-    use_sim_time: false
-    controller_frequency: 20.0
-    min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
-    min_theta_velocity_threshold: 0.01
-    failure_tolerance: 0.3
-    progress_checker_plugin: "progress_checker"
-    goal_checker_plugins: ["general_goal_checker"]
-    controller_plugins: ["FollowPath"]
+    use_sim_time: false                     # 是否使用仿真时间。
+    controller_frequency: 20.0              # 发布控制指令(cmd_vel)的频率(Hz)。推荐值: 20.0。
+    min_x_velocity_threshold: 0.001         # X轴线速度过滤阈值。低于此值视为静止。
+    min_y_velocity_threshold: 0.001         # Y轴线速度过滤阈值。阿克曼底盘通常为零。
+    min_theta_velocity_threshold: 0.01      # 偏航角速度过滤阈值。低于此值视为无旋转。
+    failure_tolerance: 0.3                  # 容忍控制指令计算失败的最大时间(秒)。推荐值: 0.3。
+    progress_checker_plugin: "progress_checker" # 进度检查器插件(检测死锁或停滞)。
+    goal_checker_plugins: ["general_goal_checker"] # 目标到达判定插件。
+    controller_plugins: ["FollowPath"]      # 核心局部路径控制器插件(默认RPP纯跟踪)。
 
-    progress_checker:
+    progress_checker:                       # 进度检查器(死锁检测)。
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.25
-      movement_time_allowance: 10.0
+      required_movement_radius: 0.25        # 规定时间内必须移动的最小半径(米)。推荐值: 0.25。
+      movement_time_allowance: 4.0          # 判定死锁前容忍的滞留时间(秒)。推荐值: 4.0。
 
-    general_goal_checker:
-      stateful: true
+    general_goal_checker:                   # 目标到达判定器。
+      stateful: true                        # 是否保持状态。
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.20
-      yaw_goal_tolerance: 0.35
+      xy_goal_tolerance: 0.10               # 目标XY位置容差(米)。推荐值: 0.1-0.2。
+      yaw_goal_tolerance: 0.3             # 目标航向角容差(弧度)。推荐值: 0.15。
 
+    # ----------------------------------------------------------------------
+    # FollowPath: 当前启用 TEB (Timed Elastic Band) 局部规划器。
+    # 通过差速近似 + 最小转弯半径(min_turning_radius)约束阿克曼底盘。
+    # 输出 cmd_vel 仍交由 cmd_vel_to_ackermann_drive.py 转换为转向角。
+    # ----------------------------------------------------------------------
     FollowPath:
-      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_vel: 0.35
-      lookahead_dist: 0.50
-      min_lookahead_dist: 0.35
-      max_lookahead_dist: 0.90
-      lookahead_time: 1.2
-      use_velocity_scaled_lookahead_dist: true
-      transform_tolerance: 0.2
-      min_approach_linear_velocity: 0.05
-      approach_velocity_scaling_dist: 0.8
-      use_collision_detection: true
-      max_allowed_time_to_collision_up_to_carrot: 1.0
-      use_regulated_linear_velocity_scaling: true
-      use_cost_regulated_linear_velocity_scaling: true
-      regulated_linear_scaling_min_radius: 0.55
-      regulated_linear_scaling_min_speed: 0.05
-      cost_scaling_dist: 0.45
-      cost_scaling_gain: 1.0
-      inflation_cost_scaling_factor: 3.0
-      use_rotate_to_heading: false
-      rotate_to_heading_min_angle: 1.57
-      rotate_to_heading_angular_vel: 0.5
-      max_angular_accel: 1.0
-      allow_reversing: false
-      max_robot_pose_search_dist: 10.0
-      use_interpolation: true
+      plugin: "teb_local_planner::TebLocalPlannerROS"
 
+      # ---- Trajectory ----
+      teb_autosize: 1.0                     # 自适应调整时间段数量。
+      dt_ref: 0.3                           # 时间分辨率(秒)，控制轨迹点稀疏度。推荐: 0.3。
+      dt_hysteresis: 0.1                    # dt 自调整滞回阈值。一般为 dt_ref 的 10%。
+      max_samples: 500                      # 单条轨迹最大采样点数。
+      global_plan_overwrite_orientation: true   # 是否用切向覆盖全局路径上的姿态。
+      allow_init_with_backwards_motion: false   # 起始解是否允许包含倒车段。阿克曼前向行驶设 false。
+      max_global_plan_lookahead_dist: 3.0   # 局部规划截取的全局路径最大长度(米)。
+      global_plan_viapoint_sep: 0.3         # via-point 提取间距(米)。<0 表示禁用。
+      global_plan_prune_distance: 1.0       # 已通过路径裁剪距离(米)。
+      exact_arc_length: false               # 是否精确弧长计算（true 较慢）。
+      feasibility_check_no_poses: 5         # 可行性检查的位姿点数。
+      publish_feedback: false               # 是否发布调试反馈话题(占资源)。
+
+      # ---- Robot Kinematic (差速近似 + 转弯半径约束阿克曼) ----
+      max_vel_x: 0.4                        # 最大前进速度(m/s)。
+      max_vel_x_backwards: 0.1              # 最大倒车速度(m/s)。
+      max_vel_y: 0.0                        # 横向速度。阿克曼必须为 0。
+      max_vel_theta: 1.0                    # 最大角速度(rad/s)，配合 min_turning_radius 形成转弯约束。
+      acc_lim_x: 0.5                        # 线加速度上限(m/s^2)。
+      acc_lim_theta: 1.0                    # 角加速度上限(rad/s^2)。
+      min_turning_radius: 0.4               # 最小转弯半径(米)，必须与硬件一致 / 与全局规划器同步。
+      wheelbase: 0.18                       # 前后轴距(米)。仅 cmd_angle_instead_rotvel=true 时生效，目前未启用。
+      cmd_angle_instead_rotvel: false       # 是否将角速度替换为转向角输出。当前由下游脚本换算，保持 false。
+      is_footprint_dynamic: false
+
+      # ---- Goal Tolerance ----
+      xy_goal_tolerance: 0.10               # 位置容差(米)。与 general_goal_checker 保持一致。
+      yaw_goal_tolerance: 0.3               # 航向容差(弧度)。
+      free_goal_vel: false                  # 是否允许到达终点时仍有速度。
+
+      # ---- Obstacles ----
+      min_obstacle_dist: 0.15               # 与障碍物最小距离(米)。考虑车体外形+冗余。
+      inflation_dist: 0.30                  # 障碍物影响范围(米)，> min_obstacle_dist。
+      include_costmap_obstacles: true       # 是否使用 local costmap 中的障碍。
+      costmap_obstacles_behind_robot_dist: 1.0  # 考虑车后障碍的距离(米)。
+      obstacle_poses_affected: 15           # 单障碍影响的轨迹点数。
+      dynamic_obstacle_inflation_dist: 0.6
+      include_dynamic_obstacles: true
+      costmap_converter_plugin: ""          # 留空使用点云障碍。可填 costmap_converter::CostmapToPolygonsDBSMCCH。
+      costmap_converter_spin_thread: true
+      costmap_converter_rate: 5
+
+      # ---- Optimization ----
+      no_inner_iterations: 5
+      no_outer_iterations: 4
+      optimization_activate: true
+      optimization_verbose: false
+      penalty_epsilon: 0.1
+      weight_max_vel_x: 2.0
+      weight_max_vel_theta: 1.0
+      weight_acc_lim_x: 1.0
+      weight_acc_lim_theta: 1.0
+      weight_kinematics_nh: 1000.0          # 非完整约束权重(差速/阿克曼)。需较大。
+      weight_kinematics_forward_drive: 50.0 # 强制前进的权重，避免无谓倒车。
+      weight_kinematics_turning_radius: 50.0  # 转弯半径约束权重。
+      weight_optimaltime: 1.0               # 时间最优权重。
+      weight_shortest_path: 0.0
+      weight_obstacle: 100.0                # 障碍物权重。
+      weight_inflation: 0.2
+      weight_dynamic_obstacle: 10.0
+      weight_dynamic_obstacle_inflation: 0.2
+      weight_viapoint: 1.0
+      weight_adapt_factor: 2.0
+
+      # ---- Homotopy Class Planner ----
+      enable_homotopy_class_planning: false # 多路径并行优化。资源敏感设备先关闭。
+      enable_multithreading: true
+      max_number_classes: 4
+      selection_cost_hysteresis: 1.0
+      selection_prefer_initial_plan: 0.95
+      selection_obst_cost_scale: 100.0
+      selection_alternative_time_cost: false
+
+      # ---- Recovery ----
+      shrink_horizon_backup: true
+      shrink_horizon_min_duration: 10.0
+      oscillation_recovery: true
+      oscillation_v_eps: 0.1
+      oscillation_omega_eps: 0.1
+      oscillation_recovery_min_duration: 10.0
+      oscillation_filter_duration: 10.0
+
+    # ----------------------------------------------------------------------
+    # 备份：原 RPP (Regulated Pure Pursuit) 控制算法，保留以便回滚对比。
+    # 启用方式：把上方 FollowPath 注释掉，并解除下面 FollowPath_RPP_BACKUP 的注释，
+    # 同时把名称重命名为 FollowPath。
+    # ----------------------------------------------------------------------
+    # FollowPath_RPP_BACKUP:
+    #   plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+    #   desired_linear_vel: 0.4
+    #   lookahead_dist: 0.15
+    #   min_lookahead_dist: 0.10
+    #   max_lookahead_dist: 0.6
+    #   lookahead_time: 1.0
+    #   use_velocity_scaled_lookahead_dist: true
+    #   transform_tolerance: 0.2
+    #   min_approach_linear_velocity: 0.05
+    #   approach_velocity_scaling_dist: 0.5
+    #   use_collision_detection: true
+    #   max_allowed_time_to_collision_up_to_carrot: 1.0
+    #   use_regulated_linear_velocity_scaling: true
+    #   use_cost_regulated_linear_velocity_scaling: true
+    #   regulated_linear_scaling_min_radius: 0.55
+    #   regulated_linear_scaling_min_speed: 0.1
+    #   cost_scaling_dist: 0.45
+    #   cost_scaling_gain: 1.0
+    #   inflation_cost_scaling_factor: 3.0
+    #   use_rotate_to_heading: false
+    #   rotate_to_heading_min_angle: 1.57
+    #   rotate_to_heading_angular_vel: 0.5
+    #   max_angular_accel: 5.0
+    #   allow_reversing: false
+    #   max_robot_pose_search_dist: 10.0
+    #   use_interpolation: true
+
+# ==============================================================================
+# Local Costmap 模块：局部代价地图。
+# 作用：以机器人为中心建立局部栅格地图，用于高频避障和局部规划。
+# ==============================================================================
 local_costmap:
   local_costmap:
     ros__parameters:
-      use_sim_time: false
-      update_frequency: 8.0
-      publish_frequency: 2.0
-      global_frame: odom_combined
-      robot_base_frame: base_footprint
-      rolling_window: true
-      width: 4
-      height: 4
-      resolution: 0.05
-      footprint: "[[0.138, 0.082], [0.138, -0.082], [-0.138, -0.082], [-0.138, 0.082]]"
-      plugins: ["obstacle_layer", "inflation_layer"]
+      use_sim_time: false                   # 是否使用仿真时间。
+      update_frequency: 8.0                 # 局部地图更新频率(Hz)。推荐值: 5.0-10.0。
+      publish_frequency: 2.0                # 局部地图发布频率(Hz)。推荐值: 2.0。
+      global_frame: odom_combined           # 局部地图绝对坐标系。推荐值: odom_combined。
+      robot_base_frame: base_footprint      # 机器人基底坐标系。
+      rolling_window: true                  # 是否使用滑动窗口。推荐值: true。
+      width: 5                              # 局部地图宽度(米)。推荐值: 3-5。
+      height: 5                             # 局部地图高度(米)。推荐值: 3-5。
+      resolution: 0.05                      # 地图分辨率(米)。推荐值: 0.05。
+      footprint: "[[0.138, 0.082], [0.138, -0.082], [-0.138, -0.082], [-0.138, 0.082]]" # 机器人多边形轮廓。
+      plugins: ["obstacle_layer", "inflation_layer"] # 启用的地图图层。
 
-      obstacle_layer:
+      obstacle_layer:                       # 障碍物图层。
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
         observation_sources: scan
         scan:
           topic: /scan
-          max_obstacle_height: 1.0
-          clearing: true
-          marking: true
+          max_obstacle_height: 1.0          # 传感器最大有效高度。
+          clearing: true                    # 是否清除地图中的动态障碍。推荐值: true。
+          marking: true                     # 是否将雷达点写入代价地图。推荐值: true。
           data_type: "LaserScan"
-          raytrace_max_range: 6.0
+          raytrace_max_range: 6.0           # 清除障碍物的最大距离。推荐值: 3.0-6.0。
           raytrace_min_range: 0.0
-          obstacle_max_range: 4.5
+          obstacle_max_range: 4.5           # 记录为障碍物的最大距离。推荐值: 2.5-4.5。
           obstacle_min_range: 0.0
 
-      inflation_layer:
+      inflation_layer:                      # 膨胀图层(安全缓冲)。
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.45
+        cost_scaling_factor: 5.0            # 代价衰减系数。推荐值: 3.0-10.0。
+        inflation_radius: 0.20              # 致命碰撞区膨胀半径(米)。根据车体大小设定。
 
-      always_send_full_costmap: true
+      always_send_full_costmap: true        # 是否始终发送完整代价地图。
 
+# ==============================================================================
+# Global Costmap 模块：全局代价地图。
+# 作用：加载静态全局地图和宏观障碍物信息，用于全局路径规划。
+# ==============================================================================
 global_costmap:
   global_costmap:
     ros__parameters:
       use_sim_time: false
-      update_frequency: 1.0
-      publish_frequency: 1.0
-      global_frame: map
+      update_frequency: 1.0                 # 全局地图更新频率(Hz)。推荐值: 1.0-2.0。
+      publish_frequency: 1.0                # 全局地图发布频率(Hz)。
+      global_frame: map                     # 全局坐标系(map)。
       robot_base_frame: base_footprint
-      footprint: "[[0.138, 0.082], [0.138, -0.082], [-0.138, -0.082], [-0.138, 0.082]]"
-      resolution: 0.05
-      track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      footprint: "[[0.138, 0.082], [0.138, -0.082], [-0.138, -0.082], [-0.138, 0.082]]" # 车体轮廓。
+      resolution: 0.05                      # 地图分辨率(需与建图时一致)。
+      track_unknown_space: true             # 是否跟踪未知区域。推荐值: true (防止进入未知地带)。
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"] # 启用的全局地图图层。
 
-      static_layer:
+      static_layer:                         # 静态底图层。
         plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: true
+        map_subscribe_transient_local: true # 确保启动时获取地图。
 
-      obstacle_layer:
+      obstacle_layer:                       # 障碍物图层。
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
         observation_sources: scan
@@ -221,112 +337,138 @@ global_costmap:
           clearing: true
           marking: true
           data_type: "LaserScan"
-          raytrace_max_range: 8.0
+          raytrace_max_range: 8.0           # 清除障碍物射线最大距离。
           raytrace_min_range: 0.0
-          obstacle_max_range: 6.0
-          obstacle_min_range: 0.0
+          obstacle_max_range: 8.0           # 记录为障碍物的最大距离。
+          obstacle_min_range: 0.21
 
-      inflation_layer:
+      inflation_layer:                      # 膨胀图层。
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.50
+        cost_scaling_factor: 3.0            # 代价衰减系数。较平缓，鼓励走空旷区域。
+        inflation_radius: 0.20              # 膨胀半径。
 
       always_send_full_costmap: true
 
+# ==============================================================================
+# Map Server 模块：静态地图服务。
+# 作用：加载、转换并分发静态地图配置(.yaml)及图片(.pgm)。
+# ==============================================================================
 map_server:
   ros__parameters:
     use_sim_time: false
-    yaml_filename: ""
+    yaml_filename: ""                       # 地图yaml文件路径。通常在Launch中指定。
 
 map_saver:
   ros__parameters:
     use_sim_time: false
-    save_map_timeout: 5.0
-    free_thresh_default: 0.25
-    occupied_thresh_default: 0.65
+    save_map_timeout: 5.0                   # 保存地图超时时间(秒)。
+    free_thresh_default: 0.25               # 空闲区域概率阈值。
+    occupied_thresh_default: 0.65           # 占用(障碍物)区域概率阈值。
     map_subscribe_transient_local: true
 
+# ==============================================================================
+# Planner Server 模块：全局路径规划器。
+# 作用：在全局代价地图上计算最优路径，处理阿克曼和差速底盘的运动约束。
+# ==============================================================================
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 10.0
+    expected_planner_frequency: 10.0        # 期望的规划频率(Hz)。
     use_sim_time: false
-    planner_plugins: ["GridBased"]
+    planner_plugins: ["GridBased"]          # 规划器插件列表。
     GridBased:
-      plugin: "nav2_smac_planner/SmacPlannerHybrid"
-      downsample_costmap: false
-      downsampling_factor: 1
-      tolerance: 0.25
-      allow_unknown: true
-      max_iterations: 100000
-      max_on_approach_iterations: 1000
-      max_planning_time: 2.0
-      motion_model_for_search: "DUBIN"
-      angle_quantization_bins: 72
-      minimum_turning_radius: 0.55
-      analytic_expansion_ratio: 3.5
-      analytic_expansion_max_length: 3.0
-      reverse_penalty: 2.0
-      change_penalty: 0.0
-      non_straight_penalty: 1.2
-      cost_penalty: 2.0
-      retrospective_penalty: 0.015
-      lookup_table_size: 20.0
-      cache_obstacle_heuristic: true
-      smooth_path: true
+      plugin: "nav2_smac_planner/SmacPlannerHybrid" # Hybrid A*规划器(适合阿克曼底盘)。
+      downsample_costmap: true             # 是否降采样代价地图。推荐: false。
+      downsampling_factor: 1                # 降采样倍数。
+      tolerance: 0.1                        # 终点位置容差(米)。推荐值: 0.1。
+      allow_unknown: true                   # 是否允许穿过未知区域。推荐值: true。
+      max_iterations: 100000                # 最大搜索迭代次数。推荐值: 100000。
+      max_on_approach_iterations: 1000      # 接近目标时的最大迭代次数。
+      max_planning_time: 2.0                # 最大规划时间(秒)。推荐值: 2.0。
+      motion_model_for_search: "DUBIN"      # 搜索运动模型。DUBIN为只能前进，REEDS_SHEPP支持倒车。
+      angle_quantization_bins: 144          # 角度离散分箱数。推荐值: 72 (即每5度)。
+      minimum_turning_radius: 0.4           # 最小转弯半径(米)。必须与实际硬件匹配。
+      analytic_expansion_ratio: 3.0         # 启发式扩展系数。推荐值: 3.5。
+      analytic_expansion_max_length: 3.0    # 启发式扩展最大长度。
+      reverse_penalty: 4.0                  # 倒车惩罚权重(REEDS_SHEPP下生效)。
+      change_penalty: 2.0                   # 换挡惩罚权重。
+      non_straight_penalty: 0.5            # 转向惩罚权重。推荐值: 1.0-2.0。
+      cost_penalty: 1.2                     # 障碍物代价惩罚权重。推荐值: 1.5-2.5。
+      retrospective_penalty: 0.05          # 回溯搜索惩罚，避免路径振荡。
+      lookup_table_size: 20.0               # 启发式查找表大小。
+      cache_obstacle_heuristic: true        # 是否缓存障碍物启发表。推荐值: true。
+      smooth_path: true                     # 是否平滑路径。推荐值: true。
 
+# ==============================================================================
+# Smoother Server 模块：路径平滑系统。
+# 作用：对全局规划生成的折线路径进行微调和平滑处理，使轨迹更平顺。
+# ==============================================================================
 smoother_server:
   ros__parameters:
     use_sim_time: false
     smoother_plugins: ["simple_smoother"]
     simple_smoother:
       plugin: "nav2_smoother::SimpleSmoother"
-      tolerance: 1.0e-10
-      max_its: 1000
-      do_refinement: true
+      tolerance: 1.0e-10                    # 平滑迭代收敛容差。
+      max_its: 1000                         # 最大迭代次数。
+      do_refinement: true                   # 是否在折角处细化插值。推荐: true。
 
+# ==============================================================================
+# Behavior Server 模块：恢复行为模块。
+# 作用：当常规规划失败或卡住时，执行脱困、等待等恢复动作。
+# ==============================================================================
 behavior_server:
   ros__parameters:
     use_sim_time: false
     costmap_topic: local_costmap/costmap_raw
     footprint_topic: local_costmap/published_footprint
-    cycle_frequency: 10.0
-    behavior_plugins: ["backup", "wait", "assisted_teleop"]
+    cycle_frequency: 10.0                   # 控制循环频率(Hz)。
+    behaviors: ["backup", "wait", "assisted_teleop","spin"] # 启用的恢复行为。
     backup:
-      plugin: "nav2_behaviors/BackUp"
+      plugin: "nav2_behaviors/BackUp"       # 倒车行为。
     wait:
-      plugin: "nav2_behaviors/Wait"
+      plugin: "nav2_behaviors/Wait"         # 等待行为。
     assisted_teleop:
-      plugin: "nav2_behaviors/AssistedTeleop"
-    global_frame: odom_combined
+      plugin: "nav2_behaviors/AssistedTeleop" # 遥控接管行为。
+    spin:
+      plugin: "nav2_behaviors/Spin"         # 原地旋转行为(阿克曼底盘无法执行，建议封禁)。
+    global_frame: odom_combined             # 全局坐标系。
     robot_base_frame: base_footprint
     transform_tolerance: 0.2
-    simulate_ahead_time: 2.0
-    max_rotational_vel: 0.2
-    min_rotational_vel: 0.0
-    rotational_acc_lim: 0.5
+    simulate_ahead_time: 2.0                # 执行盲目动作前的碰撞预演时间(秒)。
+    max_rotational_vel: 0.2                 # 最大旋转速度。
+    min_rotational_vel: 0.0                 # 最小旋转速度。
+    rotational_acc_lim: 0.5                 # 旋转角加速度限制。
 
+# ==============================================================================
+# Waypoint Follower 模块：多航点跟随模块。
+# 作用：管理并依次导航至一系列预设目标点，支持航点驻留操作。
+# ==============================================================================
 waypoint_follower:
   ros__parameters:
     use_sim_time: false
-    loop_rate: 20
-    stop_on_failure: false
+    loop_rate: 20                           # 检查状态的循环频率。
+    stop_on_failure: false                  # 单个航点失败是否停止后续任务。推荐值: false。
     waypoint_task_executor_plugin: "wait_at_waypoint"
     wait_at_waypoint:
       plugin: "nav2_waypoint_follower::WaitAtWaypoint"
-      enabled: true
-      waypoint_pause_duration: 0
+      enabled: true                         # 是否启用航点驻留。
+      waypoint_pause_duration: 0            # 到达航点后的停留时间(毫秒)。
 
+# ==============================================================================
+# Velocity Smoother 模块：速度平滑模块。
+# 作用：缓冲和限制底层驱动指令的突变，防止因指令超限导致实车失控或损坏。
+# ==============================================================================
 velocity_smoother:
   ros__parameters:
     use_sim_time: false
-    smoothing_frequency: 20.0
-    scale_velocities: false
-    feedback: "OPEN_LOOP"
-    max_velocity: [0.45, 0.0, 0.5]
-    min_velocity: [-0.10, 0.0, -0.5]
-    max_accel: [0.8, 0.0, 1.0]
-    max_decel: [-0.8, 0.0, -1.0]
-    odom_topic: /odom
-    odom_duration: 0.1
-    deadband_velocity: [0.0, 0.0, 0.0]
-    velocity_timeout: 1.0
+    smoothing_frequency: 20.0               # 速度平滑指令输出频率。建议与局部控制器同步。
+    scale_velocities: false                 # 超限时是否按比例缩小线速度和角速度。推荐: false (开启可能影响阿克曼运动逻辑)。
+    feedback: "OPEN_LOOP"                   # 反馈模式。推荐: OPEN_LOOP (开环，无需读取真实轮速)。
+    max_velocity: [0.5, 0.0, 1.5]           # 最大速度限制 [最大直线速度, 横向速度, 最大角速度]。
+    min_velocity: [-0.2, 0.0, -1.5]         # 最小速度限制 [最大倒车速度, 横向速度, 最大角速度]。
+    max_accel: [1.0, 0.0, 2.0]              # 最大加速度 [直线加速度, 横向加速度, 角加速度]。
+    max_decel: [-1.5, 0.0, -2.5]            # 最大减速度(刹车) [直线减速度, 横向减速度, 角减速度]。
+    odom_topic: /odom_combined              # 里程计话题(仅闭环模式有效)。
+    odom_duration: 0.1                      # 里程计消息超时时间(秒)。
+    deadband_velocity: [0.0, 0.0, 0.0]      # 速度死区设置。低于此值的微弱指令直接截断，防止底盘共振。
+    velocity_timeout: 1.0                   # 速度指令超时时间(秒)。超时未收到指令则触发强制刹停。

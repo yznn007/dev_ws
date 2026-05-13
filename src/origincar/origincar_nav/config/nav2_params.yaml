@@ -165,7 +165,7 @@ controller_server:
 
       # ---- Robot Kinematic (差速近似 + 转弯半径约束阿克曼) ----
       max_vel_x: 0.4                        # 最大前进速度(m/s)。
-      max_vel_x_backwards: 0.1              # 最大倒车速度(m/s)。
+      max_vel_x_backwards: 0.2              # 最大倒车速度(m/s)。
       max_vel_y: 0.0                        # 横向速度。阿克曼必须为 0。
       max_vel_theta: 1.5                    # 最大角速度(rad/s)，配合 min_turning_radius 形成转弯约束。
       acc_lim_x: 0.5                        # 线加速度上限(m/s^2)。

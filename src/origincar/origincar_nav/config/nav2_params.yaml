@@ -219,7 +219,7 @@ controller_server:
       weight_adapt_factor: 2.0
 
       # ---- Homotopy Class Planner ----
-      enable_homotopy_class_planning: false # 多路径并行优化。资源敏感设备先关闭。
+      enable_homotopy_class_planning: true  # 多路径并行优化。若实车算力不足或控制延迟明显，可改回 false。
       enable_multithreading: true
       max_number_classes: 4
       selection_cost_hysteresis: 1.0

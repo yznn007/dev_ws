@@ -192,7 +192,7 @@ controller_server:
       obstacle_poses_affected: 15           # 单障碍影响的轨迹点数。
       dynamic_obstacle_inflation_dist: 0.6
       include_dynamic_obstacles: true
-      costmap_converter_plugin: ""          # 留空使用点云障碍。可填 costmap_converter::CostmapToPolygonsDBSMCCH。
+      costmap_converter_plugin: "costmap_converter::CostmapToPolygonsDBSMCCH" # 将占用栅格聚类为多边形障碍物。
       costmap_converter_spin_thread: true
       costmap_converter_rate: 5
 

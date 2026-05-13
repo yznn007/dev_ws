@@ -175,6 +175,10 @@ controller_server:
       cmd_angle_instead_rotvel: false       # 是否将角速度替换为转向角输出。当前由下游脚本换算，保持 false。
       is_footprint_dynamic: false
 
+      footprint_model:                      # TEB 轨迹优化使用的车体外廓，独立于 costmap footprint。
+        type: "polygon"
+        vertices: "[[0.15, 0.09], [0.15, -0.09], [-0.15, -0.09], [-0.15, 0.09]]"
+
       # ---- Goal Tolerance ----
       xy_goal_tolerance: 0.10               # 位置容差(米)。与 general_goal_checker 保持一致。
       yaw_goal_tolerance: 0.3               # 航向容差(弧度)。

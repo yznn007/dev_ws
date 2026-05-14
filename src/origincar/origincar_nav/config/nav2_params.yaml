@@ -426,15 +426,13 @@ behavior_server:
     costmap_topic: local_costmap/costmap_raw
     footprint_topic: local_costmap/published_footprint
     cycle_frequency: 10.0                   # 控制循环频率(Hz)。
-    behaviors: ["backup", "wait", "assisted_teleop","spin"] # 启用的恢复行为。
+    behaviors: ["backup", "wait", "assisted_teleop"] # 启用的恢复行为(阿克曼底盘移除spin)。
     backup:
       plugin: "nav2_behaviors/BackUp"       # 倒车行为。
     wait:
       plugin: "nav2_behaviors/Wait"         # 等待行为。
     assisted_teleop:
-      plugin: "nav2_behaviors/AssistedTeleop" # 遥控接管行为。
-    spin:
-      plugin: "nav2_behaviors/Spin"         # 原地旋转行为(阿克曼底盘无法执行，建议封禁)。
+      plugin: "nav2_behaviors/AssistedTeleop" # 遥控行为。
     global_frame: odom_combined             # 全局坐标系。
     robot_base_frame: base_footprint
     transform_tolerance: 0.2

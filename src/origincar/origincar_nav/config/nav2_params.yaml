@@ -30,7 +30,7 @@ amcl:
     recovery_alpha_fast: 0.1                # 判定"定位丢失"的快速衰减率。推荐值: 0.1。
     recovery_alpha_slow: 0.001              # 判定"定位丢失"的慢速衰减率。推荐值: 0.001。
     resample_interval: 1                    # 触发重采样的滤波更新频次。推荐值: 1或2。
-    robot_model_type: "nav2_amcl::DifferentialMotionModel" # 运动学模型。通常用差速模型替代阿克曼模型。
+    robot_model_type: "nav2_amcl::DifferentialMotionModel" # 运动学模型。阿克曼底盘使用差速模型(AMCL无专用阿克曼模型)。
     save_pose_rate: 0.5                     # 位姿存入参数服务器的频率(Hz)。推荐值: 0.5。
     sigma_hit: 0.1                          # 命中模型标准差(米)。推荐值: 0.1-0.2。
     tf_broadcast: true                      # 是否发布 map->odom 坐标转换。推荐值: true。

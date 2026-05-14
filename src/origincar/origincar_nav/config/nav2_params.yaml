@@ -34,7 +34,7 @@ amcl:
     save_pose_rate: 0.5                     # 位姿存入参数服务器的频率(Hz)。推荐值: 0.5。
     sigma_hit: 0.1                          # 命中模型标准差(米)。推荐值: 0.1-0.2。
     tf_broadcast: true                      # 是否发布 map->odom 坐标转换。推荐值: true。
-    transform_tolerance: 0.5                # TF坐标变换时间戳同步容差(秒)。推荐值: 0.2-0.5。
+    transform_tolerance: 1.5                # TF坐标变换时间戳同步容差(秒)。推荐值: 1.0-1.5。
     update_min_a: 0.1                       # 触发更新的最小自转角度(弧度)。推荐值: 0.1-0.2。
     update_min_d: 0.1                       # 触发更新的最小移动距离(米)。推荐值: 0.1-0.2。
     z_hit: 0.5                              # 匹配已知静态障碍物的概率权重。推荐值: 0.5-0.9。
@@ -474,3 +474,21 @@ velocity_smoother:
     odom_duration: 0.1                      # 里程计消息超时时间(秒)。
     deadband_velocity: [0.0, 0.0, 0.0]      # 速度死区设置。低于此值的微弱指令直接截断，防止底盘共振。
     velocity_timeout: 1.0                   # 速度指令超时时间(秒)。超时未收到指令则触发强制刹停。
+
+# ==============================================================================
+# Lifecycle Manager Navigation 模块：导航生命周期管理器。
+# 作用：管理导航相关节点的生命周期状态转换和健康监控。
+# ==============================================================================
+lifecycle_manager_navigation:
+  ros__parameters:
+    use_sim_time: false
+    autostart: true
+    bond_timeout_ms: 20000                  # 节点绑定超时时间(毫秒)。TEB加载较慢，需增大超时。
+    node_names:
+      - controller_server
+      - smoother_server
+      - planner_server
+      - behavior_server
+      - bt_navigator
+      - waypoint_follower
+      - velocity_smoother

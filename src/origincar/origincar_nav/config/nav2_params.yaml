@@ -173,7 +173,7 @@ controller_server:
       min_turning_radius: 0.4               # 最小转弯半径(米)，必须与硬件一致 / 与全局规划器同步。
       wheelbase: 0.18                       # 前后轴距(米)。仅 cmd_angle_instead_rotvel=true 时生效，目前未启用。
       cmd_angle_instead_rotvel: false       # 是否将角速度替换为转向角输出。当前由下游脚本换算，保持 false。
-      is_footprint_dynamic: false
+      is_footprint_dynamic: false           # 车体轮廓是否动态变化。通常设为 false。
 
       footprint_model:                      # TEB 轨迹优化使用的车体外廓，与 costmap footprint 保持一致。
         type: "polygon"
@@ -185,56 +185,56 @@ controller_server:
       free_goal_vel: true                   # 是否允许到达终点时仍有速度。
 
       # ---- Obstacles ----
-      min_obstacle_dist: 0.15               # 与障碍物最小距离(米)。考虑车体外形+冗余。
+      min_obstacle_dist: 0.25               # 与障碍物最小距离(米)。考虑车体外形+冗余。
       inflation_dist: 0.30                  # 障碍物影响范围(米)，> min_obstacle_dist。
       include_costmap_obstacles: true       # 是否使用 local costmap 中的障碍。
       costmap_obstacles_behind_robot_dist: 1.0  # 考虑车后障碍的距离(米)。
       obstacle_poses_affected: 15           # 单障碍影响的轨迹点数。
-      dynamic_obstacle_inflation_dist: 0.6
-      include_dynamic_obstacles: true
+      dynamic_obstacle_inflation_dist: 0.6  # 动态障碍物膨胀距离(米)。
+      include_dynamic_obstacles: true       # 是否考虑动态障碍物。
       costmap_converter_plugin: "costmap_converter::CostmapToPolygonsDBSMCCH" # 将占用栅格聚类为多边形障碍物。
-      costmap_converter_spin_thread: true
-      costmap_converter_rate: 5
+      costmap_converter_spin_thread: true   # 是否为代价地图转换器启用独立线程。
+      costmap_converter_rate: 5             # 代价地图转换器更新频率(Hz)。
 
       # ---- Optimization ----
-      no_inner_iterations: 5
-      no_outer_iterations: 4
-      optimization_activate: true
-      optimization_verbose: false
-      penalty_epsilon: 0.1
-      weight_max_vel_x: 2.0
-      weight_max_vel_theta: 1.0
-      weight_acc_lim_x: 1.0
-      weight_acc_lim_theta: 1.0
+      no_inner_iterations: 5                # 内部优化迭代次数。
+      no_outer_iterations: 4                # 外部优化迭代次数。
+      optimization_activate: true           # 是否激活优化过程。
+      optimization_verbose: false           # 是否输出优化详细信息(调试用)。
+      penalty_epsilon: 0.1                  # 惩罚项平滑系数，避免数值抖动。
+      weight_max_vel_x: 2.0                 # 最大线速度约束权重。
+      weight_max_vel_theta: 1.0             # 最大角速度约束权重。
+      weight_acc_lim_x: 1.0                 # 线加速度约束权重。
+      weight_acc_lim_theta: 1.0             # 角加速度约束权重。
       weight_kinematics_nh: 1000.0          # 非完整约束权重(差速/阿克曼)。需较大。
       weight_kinematics_forward_drive: 50.0 # 强制前进的权重，避免无谓倒车。
       weight_kinematics_turning_radius: 50.0  # 转弯半径约束权重。
       weight_optimaltime: 1.0               # 时间最优权重。
-      weight_shortest_path: 0.0
+      weight_shortest_path: 0.0             # 最短路径权重。设为 0 表示禁用。
       weight_obstacle: 100.0                # 障碍物权重。
-      weight_inflation: 0.2
-      weight_dynamic_obstacle: 10.0
-      weight_dynamic_obstacle_inflation: 0.2
-      weight_viapoint: 1.0
-      weight_adapt_factor: 2.0
+      weight_inflation: 0.2                 # 障碍物膨胀区权重。
+      weight_dynamic_obstacle: 10.0         # 动态障碍物权重。
+      weight_dynamic_obstacle_inflation: 0.2 # 动态障碍物膨胀区权重。
+      weight_viapoint: 1.0                  # via-point 跟踪权重。
+      weight_adapt_factor: 2.0              # 权重自适应因子。
 
       # ---- Homotopy Class Planner ----
-      enable_homotopy_class_planning: true  # 多路径并行优化。若实车算力不足或控制延迟明显，可改回 false。
-      enable_multithreading: true
-      max_number_classes: 4
-      selection_cost_hysteresis: 1.0
-      selection_prefer_initial_plan: 0.95
-      selection_obst_cost_scale: 100.0
-      selection_alternative_time_cost: false
+      enable_homotopy_class_planning: false  # 多路径并行优化。若实车算力不足或控制延迟明显，可改回 false。
+      enable_multithreading: true           # 是否启用多线程优化。
+      max_number_classes: 4                 # 最大同伦类数量(多路径并行优化时)。
+      selection_cost_hysteresis: 1.0        # 路径选择代价滞回系数。
+      selection_prefer_initial_plan: 0.95   # 优先选择初始路径的偏好系数。
+      selection_obst_cost_scale: 100.0      # 路径选择时障碍物代价缩放系数。
+      selection_alternative_time_cost: false # 是否使用替代时间代价进行路径选择。
 
       # ---- Recovery ----
-      shrink_horizon_backup: true
-      shrink_horizon_min_duration: 10.0
-      oscillation_recovery: true
-      oscillation_v_eps: 0.1
-      oscillation_omega_eps: 0.1
-      oscillation_recovery_min_duration: 10.0
-      oscillation_filter_duration: 10.0
+      shrink_horizon_backup: true           # 是否启用收缩视界备份策略(恢复行为)。
+      shrink_horizon_min_duration: 10.0     # 收缩视界最小持续时间(秒)。
+      oscillation_recovery: true            # 是否启用振荡恢复策略。
+      oscillation_v_eps: 0.1                # 振荡检测线速度阈值(m/s)。
+      oscillation_omega_eps: 0.1            # 振荡检测角速度阈值(rad/s)。
+      oscillation_recovery_min_duration: 10.0 # 振荡恢复最小持续时间(秒)。
+      oscillation_filter_duration: 10.0     # 振荡检测滤波持续时间(秒)。
 
     # ----------------------------------------------------------------------
     # 备份：原 RPP (Regulated Pure Pursuit) 控制算法，保留以便回滚对比。

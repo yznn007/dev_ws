@@ -33,9 +33,16 @@ def generate_launch_description():
 
         launch_ros.actions.Node(
             condition=IfCondition(akmcar),
-            package='origincar_base',
+            package='teb_local_planner',
             executable='cmd_vel_to_ackermann_drive.py',
             name='cmd_vel_to_ackermann_drive',
+            parameters=[{
+                'wheelbase': 0.143,
+                'frame_id': 'odom_combined',
+                'twist_cmd_topic': '/cmd_vel',
+                'ackermann_cmd_topic': '/ackermann_cmd',
+                'cmd_angle_instead_rotvel': False,
+            }],
         ),
 
         launch_ros.actions.Node(

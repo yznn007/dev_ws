@@ -1,15 +1,10 @@
 """
 qr_scanner_py_node.py — QR code scanner for OriginCar (Python version).
 
-Uses pyzbar (zbar wrapper) as primary decoder for maximum range,
-with cv2.QRCodeDetector as fallback for extreme angles/distortions.
-
-Multi-pass pipeline:
-  1. CLAHE enhanced grayscale → pyzbar
-  2. CLAHE + sharpen → pyzbar
-  3. Adaptive binary → pyzbar
-  4. Raw color → cv2.QRCodeDetector (fallback)
-  5. Downscale pyramid (0.75x, 0.5x)
+Primary decoder: pyzbar (zbar wrapper) — best range.
+Fallback: cv2.QRCodeDetector — best extreme angles.
+Auto-detects max camera resolution (set frame_width=0 / frame_height=0).
+Preview shows CLAHE-enhanced image with minimal latency.
 """
 
 import cv2
@@ -21,15 +16,15 @@ from pyzbar.pyzbar import ZBarSymbol
 
 
 class QRScannerNode(Node):
-    """ROS 2 node that scans QR codes from a camera using multi-pass decoding."""
+    """ROS 2 node — multi-pass QR decoding with auto-resolution & low-latency preview."""
 
     def __init__(self):
         super().__init__('qr_scanner_node')
 
         # ── Declare parameters ──
         self.declare_parameter('camera_id', 0)
-        self.declare_parameter('frame_width', 1280)
-        self.declare_parameter('frame_height', 720)
+        self.declare_parameter('frame_width', 0)   # 0 = auto
+        self.declare_parameter('frame_height', 0)  # 0 = auto
         self.declare_parameter('scan_rate_hz', 10.0)
         self.declare_parameter('show_preview', False)
         self.declare_parameter('enable_multiscale', True)
@@ -37,8 +32,8 @@ class QRScannerNode(Node):
         self.declare_parameter('clahe_tile_size', 8)
 
         camera_id = self.get_parameter('camera_id').value
-        fw = self.get_parameter('frame_width').value
-        fh = self.get_parameter('frame_height').value
+        req_w = self.get_parameter('frame_width').value
+        req_h = self.get_parameter('frame_height').value
         rate = self.get_parameter('scan_rate_hz').value
         self.show_preview = self.get_parameter('show_preview').value
         self.enable_multiscale = self.get_parameter('enable_multiscale').value
@@ -52,15 +47,45 @@ class QRScannerNode(Node):
                 f'Cannot open camera /dev/video{camera_id}')
             raise RuntimeError(f'Camera /dev/video{camera_id} not available')
 
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, fw)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, fh)
-        # MJPG codec for higher FPS at HD resolution
-        self.cap.set(cv2.CAP_PROP_FOURCC,
-                     cv2.VideoWriter_fourcc(*'MJPG'))
-        self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # MJPG for higher resolution support
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+
+        # Single-frame buffer: eliminates preview latency
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # ── Resolution: auto-detect or explicit ──
+        if req_w > 0 and req_h > 0:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, req_w)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, req_h)
+            self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.get_logger().info(
+                f'Using requested resolution: {req_w}x{req_h} '
+                f'(actual: {self.actual_w}x{self.actual_h})')
+        else:
+            # Auto-detect: set impossibly high → V4L2 clamps to max supported
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 10000)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 10000)
+            self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+            if (self.actual_w > 3840 or self.actual_h > 2160 or
+                    self.actual_w <= 0 or self.actual_h <= 0):
+                self.get_logger().warn(
+                    f'Auto-detect returned suspicious '
+                    f'{self.actual_w}x{self.actual_h}, '
+                    f'falling back to 1920x1080')
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+                self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            else:
+                self.get_logger().info(
+                    f'Auto-detected max resolution: '
+                    f'{self.actual_w}x{self.actual_h}')
+
         self.get_logger().info(
-            f'Camera opened: /dev/video{camera_id} '
+            f'Camera ready: /dev/video{camera_id} '
             f'@ {self.actual_w}x{self.actual_h}')
 
         # ── CLAHE ──
@@ -73,10 +98,10 @@ class QRScannerNode(Node):
         # ── Preview window ──
         if self.show_preview:
             try:
-                cv2.namedWindow('Camera Preview', cv2.WINDOW_NORMAL)
-                cv2.resizeWindow('Camera Preview',
-                                 min(self.actual_w // 2, 640),
-                                 min(self.actual_h // 2, 360))
+                cv2.namedWindow('QR Scanner (CLAHE view)', cv2.WINDOW_NORMAL)
+                pw = min(self.actual_w, 960)
+                ph = min(self.actual_h, 540)
+                cv2.resizeWindow('QR Scanner (CLAHE view)', pw, ph)
             except cv2.error:
                 self.get_logger().warn(
                     'OpenCV GUI not available (missing GTK/QT). '
@@ -93,20 +118,17 @@ class QRScannerNode(Node):
             f'preview={self.show_preview}')
 
     # ──────────────────────────────────────────────
-    #  Preprocessing helpers
+    #  Preprocessing
     # ──────────────────────────────────────────────
 
     def preprocess_clahe(self, gray: np.ndarray) -> np.ndarray:
-        """CLAHE contrast enhancement."""
         return self.clahe.apply(gray)
 
     def preprocess_sharpen(self, gray: np.ndarray) -> np.ndarray:
-        """Unsharp mask sharpening."""
         blurred = cv2.GaussianBlur(gray, (0, 0), 3.0)
         return cv2.addWeighted(gray, 1.5, blurred, -0.5, 0)
 
     def preprocess_binary(self, gray: np.ndarray) -> np.ndarray:
-        """Adaptive Gaussian threshold → binary image."""
         return cv2.adaptiveThreshold(
             gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY, 15, 3)
@@ -116,7 +138,6 @@ class QRScannerNode(Node):
     # ──────────────────────────────────────────────
 
     def try_pyzbar(self, image: np.ndarray, pass_name: str) -> bool:
-        """Run pyzbar on a single-channel image. Returns True if found."""
         codes = pyzbar_decode(image, symbols=[ZBarSymbol.QRCODE])
         found = False
         for code in codes:
@@ -127,7 +148,6 @@ class QRScannerNode(Node):
         return found
 
     def try_cv2_qr(self, color_img: np.ndarray) -> bool:
-        """Fallback: OpenCV QRCodeDetector on color image."""
         data, pts, _ = self.cv2_detector.detectAndDecode(color_img)
         if data:
             self.get_logger().info(f'✓ QR [cv2.QRCodeDetector]: {data}')
@@ -136,20 +156,34 @@ class QRScannerNode(Node):
         return False
 
     # ──────────────────────────────────────────────
+    #  Frame grabber with buffer flush (low latency)
+    # ──────────────────────────────────────────────
+
+    def grab_latest(self) -> np.ndarray | None:
+        """Flush stale frames from the camera buffer, return the freshest one."""
+        flushed = 0
+        while self.cap.grab():
+            flushed += 1
+        if flushed == 0:
+            return None
+        ret, frame = self.cap.retrieve()
+        if not ret or frame is None:
+            return None
+        return frame
+
+    # ──────────────────────────────────────────────
     #  Main scan loop
     # ──────────────────────────────────────────────
 
     def scan_once(self):
-        """Grab a frame and run the multi-pass decoding pipeline."""
-        ret, frame = self.cap.read()
-        if not ret or frame is None:
+        frame = self.grab_latest()
+        if frame is None:
             return
 
-        # Convert to grayscale once
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         found = False
 
-        # ── Pass 1: CLAHE enhanced grayscale → pyzbar ──
+        # ── Pass 1: CLAHE → pyzbar ──
         enhanced = self.preprocess_clahe(gray)
         found = self.try_pyzbar(enhanced, 'CLAHE')
 
@@ -168,7 +202,7 @@ class QRScannerNode(Node):
             bin_clahe = self.preprocess_binary(enhanced)
             found = self.try_pyzbar(bin_clahe, 'CLAHE+Binary')
 
-        # ── Pass 5: CV2 QRCodeDetector (handles extreme angles) ──
+        # ── Pass 5: cv2.QRCodeDetector (extreme angles) ──
         if not found and self.enable_multiscale:
             found = self.try_cv2_qr(frame)
 
@@ -183,22 +217,20 @@ class QRScannerNode(Node):
                 if found:
                     break
 
-        # ── Preview ──
+        # ── Preview: CLAHE image (what the decoder sees) ──
         if self.show_preview:
-            display = frame.copy()
+            preview = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
 
-            # Detection status indicator
             color = (0, 255, 0) if found else (0, 0, 255)
-            radius = 20 if found else 10
-            cv2.circle(display, (30, 30), radius, color, -1)
+            radius = 16 if found else 8
+            cv2.circle(preview, (24, 24), radius, color, -1)
 
-            # Info text
             status = 'FOUND' if found else 'scanning...'
-            cv2.putText(display, f'{self.actual_w}x{self.actual_h} {status}',
-                        (60, 36), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6, (255, 255, 255), 2)
+            cv2.putText(preview, f'{self.actual_w}x{self.actual_h}  CLAHE  {status}',
+                        (48, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.55, (255, 255, 255), 2)
 
-            cv2.imshow('Camera Preview', display)
+            cv2.imshow('QR Scanner (CLAHE view)', preview)
             cv2.waitKey(1)
 
     def destroy_node(self):

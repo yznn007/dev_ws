@@ -1,7 +1,8 @@
 // qr_scanner_node.cpp — QR code scanner for OriginCar.
 // Uses OpenCV for camera capture + preprocessing, libzbar for QR decoding.
-// Multi-pass: CLAHE → adaptive binary → multi-resolution downscale pyramid.
-// Prints decoded QR data to stdout.
+// Multi-pass: CLAHE → CLAHE+Sharpen → Adaptive Binary → downscale pyramid.
+// Auto-detects max camera resolution (set frame_width=0 / frame_height=0).
+// Minimal-latency preview shows the CLAHE-enhanced image (what the decoder sees).
 
 #include <iostream>
 #include <string>
@@ -21,23 +22,24 @@ public:
   : Node("qr_scanner_node")
   {
     // ── Declare parameters ──
+    // frame_width=0 / frame_height=0 means "auto-detect max"
     this->declare_parameter("camera_id", 0);
-    this->declare_parameter("frame_width", 1280);
-    this->declare_parameter("frame_height", 720);
+    this->declare_parameter("frame_width", 0);
+    this->declare_parameter("frame_height", 0);
     this->declare_parameter("scan_rate_hz", 10.0);
     this->declare_parameter("show_preview", false);
     this->declare_parameter("enable_multiscale", true);
     this->declare_parameter("clahe_clip_limit", 2.0);
     this->declare_parameter("clahe_tile_size", 8);
 
-    int camera_id = this->get_parameter("camera_id").as_int();
-    fw_ = this->get_parameter("frame_width").as_int();
-    fh_ = this->get_parameter("frame_height").as_int();
-    double rate = this->get_parameter("scan_rate_hz").as_double();
-    show_preview_ = this->get_parameter("show_preview").as_bool();
+    int camera_id   = this->get_parameter("camera_id").as_int();
+    int req_w       = this->get_parameter("frame_width").as_int();
+    int req_h       = this->get_parameter("frame_height").as_int();
+    double rate     = this->get_parameter("scan_rate_hz").as_double();
+    show_preview_   = this->get_parameter("show_preview").as_bool();
     enable_multiscale_ = this->get_parameter("enable_multiscale").as_bool();
     double clahe_clip = this->get_parameter("clahe_clip_limit").as_double();
-    int clahe_tile = this->get_parameter("clahe_tile_size").as_int();
+    int clahe_tile  = this->get_parameter("clahe_tile_size").as_int();
 
     // ── Open camera ──
     cap_.open(camera_id);
@@ -46,28 +48,63 @@ public:
         "Cannot open camera /dev/video%d", camera_id);
       throw std::runtime_error("Camera not available");
     }
-    cap_.set(cv::CAP_PROP_FRAME_WIDTH, fw_);
-    cap_.set(cv::CAP_PROP_FRAME_HEIGHT, fh_);
-    // Also try MJPG format for higher FPS at HD resolution
-    cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
-    actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
-    RCLCPP_INFO(this->get_logger(),
-      "Camera opened: /dev/video%d @ %dx%d", camera_id, actual_w_, actual_h_);
 
-    // ── CLAHE (Contrast Limited Adaptive Histogram Equalization) ──
-    // Enhances local contrast → zbar sees QR finder patterns better at distance
+    // MJPG fourcc – most USB cameras support higher resolutions with MJPG
+    cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+
+    // ── Single-frame buffer: eliminate preview latency ──
+    cap_.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+    // ── Resolution: auto-detect or explicit ──
+    if (req_w > 0 && req_h > 0) {
+      cap_.set(cv::CAP_PROP_FRAME_WIDTH,  req_w);
+      cap_.set(cv::CAP_PROP_FRAME_HEIGHT, req_h);
+      actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
+      actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
+      RCLCPP_INFO(this->get_logger(),
+        "Using requested resolution: %dx%d (actual: %dx%d)",
+        req_w, req_h, actual_w_, actual_h_);
+    } else {
+      // Auto-detect: set impossibly high → V4L2 clamps to max supported
+      cap_.set(cv::CAP_PROP_FRAME_WIDTH,  10000);
+      cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 10000);
+      actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
+      actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
+
+      // Sanity check – some cameras return nonsense for the probe
+      if (actual_w_ > 3840 || actual_h_ > 2160 ||
+          actual_w_ <= 0 || actual_h_ <= 0) {
+        RCLCPP_WARN(this->get_logger(),
+          "Auto-detect returned suspicious %dx%d, falling back to 1920x1080",
+          actual_w_, actual_h_);
+        cap_.set(cv::CAP_PROP_FRAME_WIDTH,  1920);
+        cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+        actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
+        actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
+      } else {
+        RCLCPP_INFO(this->get_logger(),
+          "Auto-detected max resolution: %dx%d", actual_w_, actual_h_);
+      }
+    }
+
+    // Confirm final resolution
+    RCLCPP_INFO(this->get_logger(),
+      "Camera ready: /dev/video%d @ %dx%d",
+      camera_id, actual_w_, actual_h_);
+
+    // ── CLAHE ──
     clahe_ = cv::createCLAHE(clahe_clip, cv::Size(clahe_tile, clahe_tile));
 
-    // ── ZBar: enable QR only ──
+    // ── ZBar: QR only ──
     scanner_.set_config(zbar::ZBAR_NONE, zbar::ZBAR_CFG_ENABLE, 0);
     scanner_.set_config(zbar::ZBAR_QRCODE, zbar::ZBAR_CFG_ENABLE, 1);
 
     // ── Preview window ──
     if (show_preview_) {
-      cv::namedWindow("Camera Preview", cv::WINDOW_NORMAL);
-      cv::resizeWindow("Camera Preview",
-        std::min(actual_w_ / 2, 640), std::min(actual_h_ / 2, 360));
+      cv::namedWindow("QR Scanner (CLAHE view)", cv::WINDOW_NORMAL);
+      int pw = std::min(actual_w_, 960);
+      int ph = std::min(actual_h_, 540);
+      cv::resizeWindow("QR Scanner (CLAHE view)", pw, ph);
     }
 
     // ── Scan timer ──
@@ -95,10 +132,8 @@ public:
 
 private:
   // ── Try decode one image with zbar ──
-  // Returns true if at least one QR code was found.
   bool try_decode(const cv::Mat& gray_img, const std::string& pass_name)
   {
-    // zbar is read-only on the buffer, const_cast is safe
     zbar::Image zbar_img(gray_img.cols, gray_img.rows, "Y800",
       const_cast<uchar*>(gray_img.data), gray_img.cols * gray_img.rows);
     scanner_.scan(zbar_img);
@@ -116,7 +151,7 @@ private:
     return found;
   }
 
-  // ── Preprocessing: CLAHE on grayscale ──
+  // ── Preprocessing ──
   cv::Mat preprocess_clahe(const cv::Mat& gray)
   {
     cv::Mat enhanced;
@@ -124,17 +159,6 @@ private:
     return enhanced;
   }
 
-  // ── Preprocessing: adaptive threshold → binary ──
-  // Sharp black/white helps zbar when contrast is poor.
-  cv::Mat preprocess_binary(const cv::Mat& gray)
-  {
-    cv::Mat binary;
-    cv::adaptiveThreshold(gray, binary, 255,
-      cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 15, 3);
-    return binary;
-  }
-
-  // ── Sharpening kernel ──
   cv::Mat preprocess_sharpen(const cv::Mat& gray)
   {
     cv::Mat sharp;
@@ -143,12 +167,35 @@ private:
     return sharp;
   }
 
+  cv::Mat preprocess_binary(const cv::Mat& gray)
+  {
+    cv::Mat binary;
+    cv::adaptiveThreshold(gray, binary, 255,
+      cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 15, 3);
+    return binary;
+  }
+
+  // ── Fetch the freshest frame (flush stale buffers) ──
+  bool grab_latest(cv::Mat& frame)
+  {
+    // Flush internal camera buffer: grab-and-discard until queue is empty,
+    // then retrieve the very last frame (freshest).
+    int flushed = 0;
+    while (cap_.grab()) {
+      flushed++;
+    }
+    if (flushed == 0) {
+      return false;  // no frame available yet
+    }
+    cap_.retrieve(frame);
+    return !frame.empty();
+  }
+
   // ── Main scan loop ──
   void scan_once()
   {
     cv::Mat frame;
-    cap_ >> frame;
-    if (frame.empty()) {
+    if (!grab_latest(frame)) {
       return;
     }
 
@@ -158,33 +205,29 @@ private:
 
     bool found = false;
 
-    // ─── Pass 1: CLAHE enhanced grayscale ───
-    // Best general-purpose: fixes uneven lighting, exposes QR patterns
+    // ─── Pass 1: CLAHE ───
     cv::Mat clahe_img = preprocess_clahe(gray);
     found = try_decode(clahe_img, "CLAHE");
 
     // ─── Pass 2: CLAHE + sharpen ───
-    // Extra edge enhancement for distant/blurry codes
     if (!found && enable_multiscale_) {
       cv::Mat sharp = preprocess_sharpen(clahe_img);
       found = try_decode(sharp, "CLAHE+Sharp");
     }
 
     // ─── Pass 3: Adaptive binary ───
-    // Pure black/white; zbar sometimes prefers this
     if (!found && enable_multiscale_) {
       cv::Mat binary = preprocess_binary(gray);
       found = try_decode(binary, "Binary");
     }
 
-    // ─── Pass 4: Adaptive binary on CLAHE'd input ───
+    // ─── Pass 4: CLAHE + binary ───
     if (!found && enable_multiscale_) {
       cv::Mat bin_clahe = preprocess_binary(clahe_img);
       found = try_decode(bin_clahe, "CLAHE+Binary");
     }
 
     // ─── Pass 5–6: Downscale pyramid ───
-    // When QR is very close/large, downscaling reduces noise
     if (!found && enable_multiscale_) {
       for (double scale : {0.75, 0.5}) {
         cv::Mat down;
@@ -196,23 +239,26 @@ private:
       }
     }
 
-    // ── Show camera preview ──
+    // ── Preview: CLAHE-enhanced image (same as what decoder sees) ──
     if (show_preview_) {
-      cv::Mat display = frame.clone();
+      // Convert grayscale CLAHE to BGR for colored overlay
+      cv::Mat preview;
+      cv::cvtColor(clahe_img, preview, cv::COLOR_GRAY2BGR);
 
-      // Mark detection status
+      // Detection status indicator
       cv::Scalar status_color = found ? cv::Scalar(0, 255, 0)
                                       : cv::Scalar(0, 0, 255);
-      int radius = found ? 20 : 10;
-      cv::circle(display, cv::Point(30, 30), radius, status_color, -1);
+      int radius = found ? 16 : 8;
+      cv::circle(preview, cv::Point(24, 24), radius, status_color, -1);
 
-      // Overlay resolution and status text
+      // Resolution & status text
       std::string info = std::to_string(actual_w_) + "x" +
-        std::to_string(actual_h_) + (found ? " FOUND" : " scanning...");
-      cv::putText(display, info, cv::Point(60, 36),
-        cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
+        std::to_string(actual_h_) +
+        "  CLAHE  " + (found ? "FOUND" : "scanning...");
+      cv::putText(preview, info, cv::Point(48, 30),
+        cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(255, 255, 255), 2);
 
-      cv::imshow("Camera Preview", display);
+      cv::imshow("QR Scanner (CLAHE view)", preview);
       cv::waitKey(1);
     }
   }
@@ -224,10 +270,8 @@ private:
 
   bool show_preview_ = false;
   bool enable_multiscale_ = true;
-  int fw_ = 1280;
-  int fh_ = 720;
-  int actual_w_ = 0;
-  int actual_h_ = 0;
+  int actual_w_ = 1280;
+  int actual_h_ = 720;
 };
 
 int main(int argc, char * argv[])

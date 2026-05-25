@@ -10,17 +10,17 @@ def generate_launch_description():
             'camera_id', default_value='0',
             description='USB camera device index (/dev/videoN)'),
         DeclareLaunchArgument(
-            'frame_width', default_value='1280',
-            description='Camera capture width (increase for longer QR range)'),
+            'frame_width', default_value='0',
+            description='Capture width (0 = auto-detect max)'),
         DeclareLaunchArgument(
-            'frame_height', default_value='720',
-            description='Camera capture height'),
+            'frame_height', default_value='0',
+            description='Capture height (0 = auto-detect max)'),
         DeclareLaunchArgument(
             'scan_rate_hz', default_value='10.0',
             description='QR scan loop rate (Hz)'),
         DeclareLaunchArgument(
             'show_preview', default_value='false',
-            description='Show camera preview window (true/false)'),
+            description='Show CLAHE preview window (true/false)'),
         DeclareLaunchArgument(
             'enable_multiscale', default_value='true',
             description='Enable multi-pass preprocessing '

@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from typing import Optional
 from pyzbar.pyzbar import decode as pyzbar_decode
 from pyzbar.pyzbar import ZBarSymbol
 
@@ -159,7 +160,7 @@ class QRScannerNode(Node):
     #  Frame grabber with buffer flush (low latency)
     # ──────────────────────────────────────────────
 
-    def grab_latest(self) -> np.ndarray | None:
+    def grab_latest(self) -> Optional[np.ndarray]:
         """Flush stale frames from the camera buffer, return the freshest one."""
         flushed = 0
         while self.cap.grab():

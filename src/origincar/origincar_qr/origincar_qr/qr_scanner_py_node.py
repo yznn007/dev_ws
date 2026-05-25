@@ -11,7 +11,6 @@ import cv2
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from typing import Optional
 from pyzbar.pyzbar import decode as pyzbar_decode
 from pyzbar.pyzbar import ZBarSymbol
 
@@ -24,8 +23,8 @@ class QRScannerNode(Node):
 
         # ── Declare parameters ──
         self.declare_parameter('camera_id', 0)
-        self.declare_parameter('frame_width', 0)   # 0 = auto
-        self.declare_parameter('frame_height', 0)  # 0 = auto
+        self.declare_parameter('frame_width', 0)   # 0 = auto-detect max
+        self.declare_parameter('frame_height', 0)
         self.declare_parameter('scan_rate_hz', 10.0)
         self.declare_parameter('show_preview', False)
         self.declare_parameter('enable_multiscale', True)
@@ -41,8 +40,10 @@ class QRScannerNode(Node):
         clahe_clip = self.get_parameter('clahe_clip_limit').value
         clahe_tile = self.get_parameter('clahe_tile_size').value
 
-        # ── Open camera ──
-        self.cap = cv2.VideoCapture(camera_id)
+        # ── Open camera (force V4L2 to avoid GStreamer issues) ──
+        self.cap = cv2.VideoCapture(camera_id, cv2.CAP_V4L2)
+        if not self.cap.isOpened():
+            self.cap.open(camera_id)  # fallback to default backend
         if not self.cap.isOpened():
             self.get_logger().error(
                 f'Cannot open camera /dev/video{camera_id}')
@@ -51,39 +52,30 @@ class QRScannerNode(Node):
         # MJPG for higher resolution support
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
 
-        # Single-frame buffer: eliminates preview latency
+        # Single-frame buffer: eliminates pipeline latency
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         # ── Resolution: auto-detect or explicit ──
         if req_w > 0 and req_h > 0:
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, req_w)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, req_h)
-            self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            self.get_logger().info(
-                f'Using requested resolution: {req_w}x{req_h} '
-                f'(actual: {self.actual_w}x{self.actual_h})')
         else:
             # Auto-detect: set impossibly high → V4L2 clamps to max supported
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 10000)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 10000)
+
+        self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        if (self.actual_w > 3840 or self.actual_h > 2160 or
+                self.actual_w <= 0 or self.actual_h <= 0):
+            self.get_logger().warn(
+                f'Resolution probe returned {self.actual_w}x{self.actual_h}, '
+                f'falling back to 1920x1080')
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
             self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            if (self.actual_w > 3840 or self.actual_h > 2160 or
-                    self.actual_w <= 0 or self.actual_h <= 0):
-                self.get_logger().warn(
-                    f'Auto-detect returned suspicious '
-                    f'{self.actual_w}x{self.actual_h}, '
-                    f'falling back to 1920x1080')
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-                self.actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                self.actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            else:
-                self.get_logger().info(
-                    f'Auto-detected max resolution: '
-                    f'{self.actual_w}x{self.actual_h}')
 
         self.get_logger().info(
             f'Camera ready: /dev/video{camera_id} '
@@ -102,7 +94,8 @@ class QRScannerNode(Node):
                 cv2.namedWindow('QR Scanner (CLAHE view)', cv2.WINDOW_NORMAL)
                 pw = min(self.actual_w, 960)
                 ph = min(self.actual_h, 540)
-                cv2.resizeWindow('QR Scanner (CLAHE view)', pw, ph)
+                if pw > 0 and ph > 0:
+                    cv2.resizeWindow('QR Scanner (CLAHE view)', pw, ph)
             except cv2.error:
                 self.get_logger().warn(
                     'OpenCV GUI not available (missing GTK/QT). '
@@ -119,7 +112,7 @@ class QRScannerNode(Node):
             f'preview={self.show_preview}')
 
     # ──────────────────────────────────────────────
-    #  Preprocessing
+    #  Preprocessing helpers
     # ──────────────────────────────────────────────
 
     def preprocess_clahe(self, gray: np.ndarray) -> np.ndarray:
@@ -157,28 +150,13 @@ class QRScannerNode(Node):
         return False
 
     # ──────────────────────────────────────────────
-    #  Frame grabber with buffer flush (low latency)
-    # ──────────────────────────────────────────────
-
-    def grab_latest(self) -> Optional[np.ndarray]:
-        """Flush stale frames from the camera buffer, return the freshest one."""
-        flushed = 0
-        while self.cap.grab():
-            flushed += 1
-        if flushed == 0:
-            return None
-        ret, frame = self.cap.retrieve()
-        if not ret or frame is None:
-            return None
-        return frame
-
-    # ──────────────────────────────────────────────
     #  Main scan loop
     # ──────────────────────────────────────────────
 
     def scan_once(self):
-        frame = self.grab_latest()
-        if frame is None:
+        # BUFFERSIZE=1 → at most one stale frame; read() gets the latest
+        ret, frame = self.cap.read()
+        if not ret or frame is None:
             return
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -227,7 +205,8 @@ class QRScannerNode(Node):
             cv2.circle(preview, (24, 24), radius, color, -1)
 
             status = 'FOUND' if found else 'scanning...'
-            cv2.putText(preview, f'{self.actual_w}x{self.actual_h}  CLAHE  {status}',
+            cv2.putText(preview,
+                        f'{self.actual_w}x{self.actual_h}  CLAHE  {status}',
                         (48, 30), cv2.FONT_HERSHEY_SIMPLEX,
                         0.55, (255, 255, 255), 2)
 

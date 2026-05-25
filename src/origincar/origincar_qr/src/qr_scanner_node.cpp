@@ -1,14 +1,13 @@
 // qr_scanner_node.cpp — QR code scanner for OriginCar.
-// Uses OpenCV for camera capture + preprocessing, libzbar for QR decoding.
+// Uses OpenCV (V4L2 backend) for camera capture + preprocessing,
+// libzbar for QR decoding.
 // Multi-pass: CLAHE → CLAHE+Sharpen → Adaptive Binary → downscale pyramid.
 // Auto-detects max camera resolution (set frame_width=0 / frame_height=0).
-// Minimal-latency preview shows the CLAHE-enhanced image (what the decoder sees).
+// Low-latency preview shows the CLAHE-enhanced image.
 
 #include <iostream>
 #include <string>
 #include <memory>
-#include <vector>
-#include <algorithm>
 
 #include <rclcpp/rclcpp.hpp>
 #include <opencv2/opencv.hpp>
@@ -22,9 +21,8 @@ public:
   : Node("qr_scanner_node")
   {
     // ── Declare parameters ──
-    // frame_width=0 / frame_height=0 means "auto-detect max"
     this->declare_parameter("camera_id", 0);
-    this->declare_parameter("frame_width", 0);
+    this->declare_parameter("frame_width", 0);   // 0 = auto-detect max
     this->declare_parameter("frame_height", 0);
     this->declare_parameter("scan_rate_hz", 10.0);
     this->declare_parameter("show_preview", false);
@@ -41,8 +39,12 @@ public:
     double clahe_clip = this->get_parameter("clahe_clip_limit").as_double();
     int clahe_tile  = this->get_parameter("clahe_tile_size").as_int();
 
-    // ── Open camera ──
-    cap_.open(camera_id);
+    // ── Open camera (force V4L2 backend — avoids GStreamer issues) ──
+    cap_.open(camera_id, cv::CAP_V4L2);
+    if (!cap_.isOpened()) {
+      // Fallback: try default backend
+      cap_.open(camera_id);
+    }
     if (!cap_.isOpened()) {
       RCLCPP_ERROR(this->get_logger(),
         "Cannot open camera /dev/video%d", camera_id);
@@ -59,35 +61,26 @@ public:
     if (req_w > 0 && req_h > 0) {
       cap_.set(cv::CAP_PROP_FRAME_WIDTH,  req_w);
       cap_.set(cv::CAP_PROP_FRAME_HEIGHT, req_h);
-      actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
-      actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
-      RCLCPP_INFO(this->get_logger(),
-        "Using requested resolution: %dx%d (actual: %dx%d)",
-        req_w, req_h, actual_w_, actual_h_);
     } else {
       // Auto-detect: set impossibly high → V4L2 clamps to max supported
       cap_.set(cv::CAP_PROP_FRAME_WIDTH,  10000);
       cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 10000);
+    }
+    actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
+    actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
+
+    // Sanity check
+    if (actual_w_ > 3840 || actual_h_ > 2160 ||
+        actual_w_ <= 0 || actual_h_ <= 0) {
+      RCLCPP_WARN(this->get_logger(),
+        "Resolution probe returned %dx%d, falling back to 1920x1080",
+        actual_w_, actual_h_);
+      cap_.set(cv::CAP_PROP_FRAME_WIDTH,  1920);
+      cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
       actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
       actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
-
-      // Sanity check – some cameras return nonsense for the probe
-      if (actual_w_ > 3840 || actual_h_ > 2160 ||
-          actual_w_ <= 0 || actual_h_ <= 0) {
-        RCLCPP_WARN(this->get_logger(),
-          "Auto-detect returned suspicious %dx%d, falling back to 1920x1080",
-          actual_w_, actual_h_);
-        cap_.set(cv::CAP_PROP_FRAME_WIDTH,  1920);
-        cap_.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
-        actual_w_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
-        actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
-      } else {
-        RCLCPP_INFO(this->get_logger(),
-          "Auto-detected max resolution: %dx%d", actual_w_, actual_h_);
-      }
     }
 
-    // Confirm final resolution
     RCLCPP_INFO(this->get_logger(),
       "Camera ready: /dev/video%d @ %dx%d",
       camera_id, actual_w_, actual_h_);
@@ -104,7 +97,9 @@ public:
       cv::namedWindow("QR Scanner (CLAHE view)", cv::WINDOW_NORMAL);
       int pw = std::min(actual_w_, 960);
       int ph = std::min(actual_h_, 540);
-      cv::resizeWindow("QR Scanner (CLAHE view)", pw, ph);
+      if (pw > 0 && ph > 0) {
+        cv::resizeWindow("QR Scanner (CLAHE view)", pw, ph);
+      }
     }
 
     // ── Scan timer ──
@@ -131,7 +126,7 @@ public:
   }
 
 private:
-  // ── Try decode one image with zbar ──
+  // ── Try decode with zbar ──
   bool try_decode(const cv::Mat& gray_img, const std::string& pass_name)
   {
     zbar::Image zbar_img(gray_img.cols, gray_img.rows, "Y800",
@@ -161,9 +156,10 @@ private:
 
   cv::Mat preprocess_sharpen(const cv::Mat& gray)
   {
+    cv::Mat blurred;
+    cv::GaussianBlur(gray, blurred, cv::Size(0, 0), 3.0);
     cv::Mat sharp;
-    cv::GaussianBlur(gray, sharp, cv::Size(0, 0), 3.0);
-    cv::addWeighted(gray, 1.5, sharp, -0.5, 0, sharp);
+    cv::addWeighted(gray, 1.5, blurred, -0.5, 0, sharp);
     return sharp;
   }
 
@@ -175,27 +171,13 @@ private:
     return binary;
   }
 
-  // ── Fetch the freshest frame (flush stale buffers) ──
-  bool grab_latest(cv::Mat& frame)
-  {
-    // Flush internal camera buffer: grab-and-discard until queue is empty,
-    // then retrieve the very last frame (freshest).
-    int flushed = 0;
-    while (cap_.grab()) {
-      flushed++;
-    }
-    if (flushed == 0) {
-      return false;  // no frame available yet
-    }
-    cap_.retrieve(frame);
-    return !frame.empty();
-  }
-
   // ── Main scan loop ──
   void scan_once()
   {
+    // BUFFERSIZE=1 ensures at most one stale frame; read() gets the latest
     cv::Mat frame;
-    if (!grab_latest(frame)) {
+    cap_ >> frame;
+    if (frame.empty()) {
       return;
     }
 
@@ -239,19 +221,16 @@ private:
       }
     }
 
-    // ── Preview: CLAHE-enhanced image (same as what decoder sees) ──
+    // ── Preview: CLAHE-enhanced image ──
     if (show_preview_) {
-      // Convert grayscale CLAHE to BGR for colored overlay
       cv::Mat preview;
       cv::cvtColor(clahe_img, preview, cv::COLOR_GRAY2BGR);
 
-      // Detection status indicator
       cv::Scalar status_color = found ? cv::Scalar(0, 255, 0)
                                       : cv::Scalar(0, 0, 255);
       int radius = found ? 16 : 8;
       cv::circle(preview, cv::Point(24, 24), radius, status_color, -1);
 
-      // Resolution & status text
       std::string info = std::to_string(actual_w_) + "x" +
         std::to_string(actual_h_) +
         "  CLAHE  " + (found ? "FOUND" : "scanning...");

@@ -10,10 +10,10 @@ def generate_launch_description():
             'camera_id', default_value='0',
             description='USB camera device index (/dev/videoN)'),
         DeclareLaunchArgument(
-            'frame_width', default_value='640',
-            description='Camera capture width'),
+            'frame_width', default_value='1280',
+            description='Camera capture width (increase for longer QR range)'),
         DeclareLaunchArgument(
-            'frame_height', default_value='480',
+            'frame_height', default_value='720',
             description='Camera capture height'),
         DeclareLaunchArgument(
             'scan_rate_hz', default_value='10.0',
@@ -21,6 +21,16 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'show_preview', default_value='false',
             description='Show camera preview window (true/false)'),
+        DeclareLaunchArgument(
+            'enable_multiscale', default_value='true',
+            description='Enable multi-pass preprocessing '
+                        '(CLAHE + binary + downscale pyramid)'),
+        DeclareLaunchArgument(
+            'clahe_clip_limit', default_value='2.0',
+            description='CLAHE clip limit for contrast enhancement'),
+        DeclareLaunchArgument(
+            'clahe_tile_size', default_value='8',
+            description='CLAHE tile grid size'),
 
         Node(
             package='origincar_qr',
@@ -34,6 +44,9 @@ def generate_launch_description():
                 'frame_height': LaunchConfiguration('frame_height'),
                 'scan_rate_hz': LaunchConfiguration('scan_rate_hz'),
                 'show_preview': LaunchConfiguration('show_preview'),
+                'enable_multiscale': LaunchConfiguration('enable_multiscale'),
+                'clahe_clip_limit': LaunchConfiguration('clahe_clip_limit'),
+                'clahe_tile_size': LaunchConfiguration('clahe_tile_size'),
             }],
         ),
     ])

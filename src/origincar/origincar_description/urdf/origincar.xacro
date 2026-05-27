@@ -1,154 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <robot name="mycar" xmlns:xacro="http://wiki.ros.org/xacro">
 
   <xacro:property name="PI" value="3.1415926"/>
   <xacro:property name="Track" value="0.1682"/>
   <xacro:property name="WheelBase" value="0.189"/>
-  <xacro:property name="WheelLen" value="0.025"/>
+  <xacro:property name="WheelRadius" value="0.03"/>
+  <xacro:property name="BaseBoxLength" value="0.276"/>
+  <xacro:property name="BaseBoxWidth" value="0.164"/>
+  <xacro:property name="BaseBoxHeight" value="0.08"/>
+
+  <xacro:macro name="wheel" params="prefix side_x side_y">
+    <link name="${prefix}_Link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${side_y * (-PI / 2)} 0 0"/>
+        <geometry>
+          <cylinder radius="${WheelRadius}" length="0.025"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="${prefix}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${prefix}_Link"/>
+      <origin xyz="${side_x * Track / 2} ${side_y * WheelBase / 2} ${WheelRadius}" rpy="0 0 0"/>
+      <axis xyz="0 ${side_y} 0"/>
+    </joint>
+  </xacro:macro>
+
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${WheelRadius}" rpy="0 0 0"/>
+  </joint>
 
   <link name="base_link">
     <visual>
       <geometry>
-        <box size="0.276 ${WheelBase-WheelLen} 0.08"/>
+        <box size="${BaseBoxLength} ${BaseBoxWidth} ${BaseBoxHeight}"/>
       </geometry>
-      <origin xyz="0 0 ${0.08/2+0.03}" rpy="0 0 0"/>
-      <material name="rgba(102,10,10,1)">
-        <color rgba="${102/255} ${10/255} ${10/255} 1" />
+      <origin xyz="0 0 ${BaseBoxHeight / 2 + WheelRadius}" rpy="0 0 0"/>
+      <material name="rgb(54, 42, 42)">
+        <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
       </material>
     </visual>
   </link>
+
+  <link name="gyro_link"/>
+
+  <joint name="gyro_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="gyro_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
 
   <link name="board_link">
     <visual>
       <geometry>
-        <box size="0.200 ${WheelBase-WheelLen} ${0.150-0.08}"/>
+        <box size="0.200 ${BaseBoxWidth} 0.07"/>
       </geometry>
-      <origin xyz="0 0 ${(0.150-0.08)/2}" rpy="0 0 0"/>
+      <origin xyz="0 0 0.035" rpy="0 0 0"/>
       <material name="rgba(246,152,152,1)">
-        <color rgba="${246/255} ${152/255} ${152/255} 1" />
+        <color rgba="0.9647058823529412 0.596078431372549 0.596078431372549 1"/>
       </material>
     </visual>
   </link>
 
-  <link name="camera" >
+  <link name="camera">
     <visual>
       <geometry>
         <box size="0.015 0.045 0.03"/>
       </geometry>
-      <origin xyz="0 0 ${(0.03)/2}" rpy="0 0 0"/>
+      <origin xyz="0 0 0.015" rpy="0 0 0"/>
       <material name="rgba(93,78,78,1)">
-        <color rgba="${93/255} ${78/255} ${78/255} 1" />
+        <color rgba="0.36470588235294116 0.3058823529411765 0.3058823529411765 1"/>
       </material>
     </visual>
   </link>
 
   <joint name="camera_joint" type="fixed">
-    <parent link="base_link" />
-    <child link="camera" />
-    <origin xyz="${(0.276-0.015)/2-0.01} 0 ${0.08+0.03}" rpy="0 0 0" /> 
+    <parent link="base_link"/>
+    <child link="camera"/>
+    <origin xyz="${(BaseBoxLength - 0.015) / 2 - 0.01} 0 ${WheelRadius + BaseBoxHeight}" rpy="0 0 0"/>
   </joint>
-  
 
   <joint name="board_joint" type="fixed">
-    <parent link="base_link" />
-    <child link="board_link" />
-    <origin xyz="${-(0.276-0.2)/2} 0 ${0.08+0.03}" rpy="0 0 0" /> 
-    <axis xyz="0 1 0" />
+    <parent link="base_link"/>
+    <child link="board_link"/>
+    <origin xyz="${-(BaseBoxLength - 0.200) / 2} 0 ${WheelRadius + BaseBoxHeight}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
   </joint>
 
-  <link name="down_left_Link">
+  <xacro:wheel prefix="down_left"  side_x="-1" side_y="1"/>
+  <xacro:wheel prefix="down_right" side_x="-1" side_y="-1"/>
+  <xacro:wheel prefix="up_left"    side_x="1"  side_y="1"/>
+  <xacro:wheel prefix="up_right"   side_x="1"  side_y="-1"/>
+
+  <link name="laser">
     <visual>
-      <origin xyz="0 ${-WheelLen/2+0.025/2} 0" rpy="${-PI/2} 0 0" />
+      <origin xyz="0 0 0.015" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.03" length="0.025" />
+        <cylinder length="0.03" radius="0.025"/>
       </geometry>
-      <material name="">
-        <color rgba="0.7450980392156863 0.12941176470588237 0.12941176470588237 1" />
+      <material name="dark_brown">
+        <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
       </material>
     </visual>
-  </link>
 
-  <joint name="down_left_joint" type="continuous">
-    <parent link="base_link" />
-    <child link="down_left_Link" />
-    <origin xyz="${-Track/2} ${WheelBase/2} ${0.03}" rpy="0 0 0" /> 
-    <axis xyz="0 1 0" />
-  </joint>
-
-  <link name="down_right_Link">
     <visual>
-      <origin xyz="0 ${WheelLen/2-0.025/2} 0" rpy="${PI/2} 0 0" />
+      <origin xyz="0 0 0.035" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.03" length="0.025"/>
+        <cylinder length="0.01" radius="0.020"/>
       </geometry>
-      <material name="">
-        <color rgba="0.7450980392156863 0.12941176470588237 0.12941176470588237 1" />
-      </material>
-    </visual>
-  </link>
-
-  <joint name="down_right_joint" type="continuous">
-    <parent link="base_link" />
-    <child link="down_right_Link" />
-    <origin xyz="${-Track/2} ${-WheelBase/2} ${0.03}" rpy="0 0 0" /> 
-    <axis xyz="0 -1 0" />
-  </joint>
-
-  <link name="up_left_Link">
-    <visual>
-      <origin xyz="0 ${-WheelLen/2+0.025/2} 0" rpy="${-PI/2} 0 0" />
-      <geometry>
-        <cylinder radius="0.03" length="0.025"/>
-      </geometry>
-      <material name="">
-        <color rgba="0.7450980392156863 0.12941176470588237 0.12941176470588237 1" />
-      </material>
-    </visual>
-  </link>
-
-  <joint name="up_left_joint" type="continuous">
-    <parent link="base_link" />
-    <child  link="up_left_Link" />
-    <origin xyz="${Track/2} ${WheelBase/2} ${0.03}" rpy="0 0 0" /> 
-    <axis xyz="0 1 0" />
-  </joint>
-
-  <link name="up_right_Link">
-    <visual>
-      <origin xyz="0 ${WheelLen/2-0.025/2} 0" rpy="${PI/2} 0 0" />
-      <geometry>
-        <cylinder radius="0.03" length="0.025"/>
-      </geometry>
-      <material name="">
-        <color rgba="0.7450980392156863 0.12941176470588237 0.12941176470588237 1" />
-      </material>
-    </visual>
-  </link>
-
-  <joint name="up_right_joint" type="continuous">
-    <parent link="base_link" />
-    <child link="up_right_Link" />
-    <origin xyz="${Track/2} ${-WheelBase/2} ${0.03}" rpy="0 0 0" /> 
-    <axis  xyz="0 -1 0" />
-  </joint>
-
-  <!-- 激光雷达模型 -->
-  <link name="laser_link">
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <geometry>
-        <cylinder radius="0.04" length="0.05"/>
-      </geometry>
-      <material name="">
-        <color rgba="0.2 0.2 0.2 1" />
-      </material>
+      <material name="dark_brown"/>
     </visual>
   </link>
 
   <joint name="laser_joint" type="fixed">
-    <parent link="base_link" />
-    <child link="laser_link" />
-    <origin xyz="0.15 0 0.12" rpy="0 0 0" />
+    <parent link="board_link"/>
+    <child link="laser"/>
+    <origin xyz="0.073 0 0.07" rpy="0 0 0"/>
   </joint>
+
 </robot>

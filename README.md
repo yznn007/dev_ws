@@ -2,10 +2,10 @@
 
 ## 1) 项目简介
 
-本仓库是基于 ROS 2 Humble 的小车工作空间，包含底盘串口驱动、雷达驱动、SLAM/导航启动、机器人模型、自定义消息与导航相关第三方源码包。
+本仓库面向全国大学生智能车竞赛（智慧医疗机器人创意赛），上位机为 RDK X5（地瓜机器人/Horizon Robotics）。基于 ROS 2 Humble，包含底盘串口驱动、雷达驱动、SLAM/导航启动、机器人模型、自定义消息与导航相关第三方源码包。
 
-- 工作空间路径：`/home/sunrise/dev_ws`
-- 源码主路径：`/home/sunrise/dev_ws/src/origincar`
+- 工作空间路径：`~/dev_ws`
+- 源码主路径：`src/origincar`
 - 包发现参数：`--base-paths src/origincar`
 
 ## 2) 快速开始
@@ -48,7 +48,7 @@ rosdep update
 安装源码依赖：
 
 ```bash
-cd /home/sunrise/dev_ws
+cd ~/dev_ws
 source /opt/ros/humble/setup.bash
 rosdep install --from-paths src/origincar --ignore-src -r -y
 ```
@@ -56,17 +56,17 @@ rosdep install --from-paths src/origincar --ignore-src -r -y
 ### 2.3 构建与环境加载
 
 ```bash
-cd /home/sunrise/dev_ws
+cd ~/dev_ws
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install --base-paths src/origincar
-source /home/sunrise/dev_ws/install/setup.bash
+source ~/dev_ws/install/setup.bash
 ```
 
 可选：写入 `~/.bashrc`。
 
 ```bash
 echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
-echo "source /home/sunrise/dev_ws/install/setup.bash" >> ~/.bashrc
+echo "source ~/dev_ws/install/setup.bash" >> ~/.bashrc
 ```
 
 ## 3) 常用启动（底盘/雷达/SLAM/导航）
@@ -75,7 +75,7 @@ echo "source /home/sunrise/dev_ws/install/setup.bash" >> ~/.bashrc
 
 ```bash
 source /opt/ros/humble/setup.bash
-source /home/sunrise/dev_ws/install/setup.bash
+source ~/dev_ws/install/setup.bash
 ```
 
 ### 3.1 底盘启动（推荐入口）
@@ -144,7 +144,7 @@ ros2 launch origincar_slam slam.launch.py enable_teleop:=false
 ros2 launch origincar_nav navigation.launch.py
 ```
 
-该启动会拉起底盘、雷达和 Nav2，默认地图为 `origincar_slam/map/map_test.yaml`，默认参数为 `origincar_nav/config/nav2_params.yaml`。
+该启动会拉起底盘、雷达和 Nav2，默认地图为 `origincar_slam/map/map_v0.1.yaml`，默认参数为 `origincar_nav/config/nav2_params.yaml`。
 
 ## 4) 工作空间结构
 
@@ -241,7 +241,7 @@ udev 规则脚本：
 执行示例（会修改宿主机 `/etc/udev/rules.d/`，请确认后执行）：
 
 ```bash
-cd /home/sunrise/dev_ws
+cd ~/dev_ws
 sudo bash src/origincar/wheeltec_udev.sh
 ```
 
@@ -292,7 +292,7 @@ SLAM 参数文件：
 
 默认地图：
 
-- `src/origincar/origincar_slam/map/map_test.yaml`
+- `src/origincar/origincar_slam/map/map_v0.1.yaml`
 
 注意：导航参数中的 `/scan`、`odom_combined`、`base_footprint` 需要与底盘、雷达、SLAM 配置保持一致。
 
@@ -339,7 +339,7 @@ sudo apt install -y ros-humble-diagnostic-updater
 历史版本中，若工作空间包含第三方 `tf2_tools` 且出现 `setup.py develop --uninstall` 相关报错，可先跳过该包：
 
 ```bash
-cd /home/sunrise/dev_ws
+cd ~/dev_ws
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install --base-paths src/origincar --packages-skip tf2_tools
 ```

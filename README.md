@@ -165,6 +165,9 @@ dev_ws/
 │       ├── origincar_nav/
 │       ├── origincar_msg/
 │       └── origincar_slam/
+│       ├── wheeltec_udev
+│       └── wheeltec_udev.sh
+├── config/
 ├── build/
 ├── install/
 ├── log/
@@ -180,7 +183,7 @@ dev_ws/
 | `origincar_nav` | `src/origincar/origincar_nav` | `ament_cmake` | Nav2 导航启动、参数与行为树 |
 | `lslidar_driver` | `src/origincar/lslidar_driver` | `ament_cmake` | 雷神雷达驱动节点 |
 | `lslidar_msgs` | `src/origincar/lslidar_msgs` | `ament_cmake` | 雷达消息定义 |
-| `origincar_description` | `src/origincar/origincar_description` | `ament_cmake` | 机器人模型与 RViz 配置 |
+| `origincar_description` | `src/origincar/origincar_description` | `ament_cmake` | 机器人 URDF 模型与 STL 网格文件（由 `origincar_base` 的 launch 加载） |
 | `origincar_msg` | `src/origincar/origincar_msg` | `ament_cmake` | 业务自定义消息 |
 | `origincar_bringup` | `src/origincar/origincar_bringup` | `ament_cmake` | USB/Websocket 组合启动（依赖仓库外 Hobot 包） |
 | `ackermann_msgs` | `src/origincar/3rdparty/ackermann_msgs-ros2` | `ament_cmake` | Ackermann 控制消息 |
@@ -189,6 +192,8 @@ dev_ws/
 | `costmap_converter` / `costmap_converter_msgs` | `src/origincar/3rdparty/costmap_converter` | `ament_cmake` | TEB 相关 costmap 转换插件及消息 |
 
 `origincar_bringup` 的 `usb_websocket_display.launch.py` 依赖外部包（例如 `hobot_usb_cam`、`hobot_codec`、`dnn_node_example`、`websocket`），缺少这些包时该启动不可用。
+
+> **模型说明**：`origincar_description/urdf/` 下有两套 xacro 模型（`origincar.xacro` 几何体 / `origincar_stl.xacro` STL 网格），当前 launch 加载前者，修改模型时注意两套同步。
 
 ## 6) 话题与坐标系
 
@@ -296,7 +301,7 @@ SLAM 参数文件：
 
 注意：导航参数中的 `/scan`、`odom_combined`、`base_footprint` 需要与底盘、雷达、SLAM 配置保持一致。
 
-## 8) 常见故障（串口、/scan、依赖缺失、tf2_tools）
+## 8) 常见故障（串口、/scan、依赖缺失）
 
 ### 8.1 串口打不开
 
@@ -336,15 +341,7 @@ sudo apt install -y ros-humble-diagnostic-updater
 
 ### 8.4 `tf2_tools` 构建问题
 
-历史版本中，若工作空间包含第三方 `tf2_tools` 且出现 `setup.py develop --uninstall` 相关报错，可先跳过该包：
-
-```bash
-cd ~/dev_ws
-source /opt/ros/humble/setup.bash
-colcon build --symlink-install --base-paths src/origincar --packages-skip tf2_tools
-```
-
-若仅需工具命令，可直接安装系统包：
+当前工作空间不包含 `tf2_tools` 源码包。若需 `view_frames` 等工具，直接安装系统包：
 
 ```bash
 sudo apt install -y ros-humble-tf2-tools
@@ -427,8 +424,5 @@ ros2 topic echo /local_plan
 
 # 5. 检查里程计数据
 ros2 topic echo /odom_combined
-
-
-
-
+```
 ```

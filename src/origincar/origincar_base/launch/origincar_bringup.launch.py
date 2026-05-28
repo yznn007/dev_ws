@@ -26,7 +26,7 @@ def generate_launch_description():
 
     origincar_base = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir, 'base_serial.launch.py')),
-            launch_arguments={'akmcar': 'true'}.items(),
+            launch_arguments={'akmcar': 'false'}.items(),
     )
 
     origincar_description = IncludeLaunchDescription(

@@ -23,6 +23,7 @@ def generate_launch_description():
     imu_config = Path(get_package_share_directory('origincar_base'), 'config', 'imu.yaml')
 
     carto_slam = LaunchConfiguration('carto_slam', default='false')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
     origincar_base = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir, 'base_serial.launch.py')),
@@ -48,6 +49,16 @@ def generate_launch_description():
             )
                               
     ld = LaunchDescription()
+    ld.add_action(DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='false',
+        description='Use simulation (Gazebo) clock if true'
+    ))
+    ld.add_action(DeclareLaunchArgument(
+        'carto_slam',
+        default_value='false',
+        description='Use Cartographer SLAM if true'
+    ))
     ld.add_action(origincar_base)
     ld.add_action(origincar_description)
     ld.add_action(imu_node)    

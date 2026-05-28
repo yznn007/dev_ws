@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""Wrapper executable for the Python QR scanner node."""
+from origincar_qr.qr_scanner_py_node import main
+
+if __name__ == '__main__':
+    main()

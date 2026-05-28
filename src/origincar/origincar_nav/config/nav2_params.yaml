@@ -5,6 +5,7 @@
 amcl:
   ros__parameters:
     use_sim_time: false                     # 是否使用仿真时间。实体机设false，仿真设true。
+    initial_pose: [0.0, 0.0, 0.0, 0.0]     # 初始位姿 [x, y, z, yaw]，根据地图中小车实际停放位置设置。
     alpha1: 0.2                             # 旋转引起的旋转误差。推荐值: 0.1-0.2。
     alpha2: 0.4                             # 平移引起的旋转误差。推荐值: 0.2-0.4 (阿克曼底盘平移常伴随旋转)。
     alpha3: 0.2                             # 平移引起的平移误差。推荐值: 0.1-0.2。
@@ -157,7 +158,7 @@ controller_server:
       global_plan_overwrite_orientation: true   # 是否用切向覆盖全局路径上的姿态。
       allow_init_with_backwards_motion: false   # 起始解是否允许包含倒车段。阿克曼前向行驶设 false。
       max_global_plan_lookahead_dist: 3.0   # 局部规划截取的全局路径最大长度(米)。
-      global_plan_viapoint_sep: 0.3         # via-point 提取间距(米)。<0 表示禁用。
+      global_plan_viapoint_sep: 0.2         # via-point 提取间距(米)。更密集以增强路径跟踪。
       global_plan_prune_distance: 1.0       # 已通过路径裁剪距离(米)。
       exact_arc_length: false               # 是否精确弧长计算（true 较慢）。
       feasibility_check_no_poses: 5         # 可行性检查的位姿点数。
@@ -215,7 +216,7 @@ controller_server:
       weight_inflation: 0.2                 # 障碍物膨胀区权重。
       weight_dynamic_obstacle: 10.0         # 动态障碍物权重。
       weight_dynamic_obstacle_inflation: 0.2 # 动态障碍物膨胀区权重。
-      weight_viapoint: 1.0                  # via-point 跟踪权重。
+      weight_viapoint: 2.0                  # via-point 跟踪权重。提高以减少路径偏离。
       weight_adapt_factor: 2.0              # 权重自适应因子。
 
       # ---- Homotopy Class Planner ----
@@ -230,11 +231,11 @@ controller_server:
       # ---- Recovery ----
       shrink_horizon_backup: true           # 是否启用收缩视界备份策略(恢复行为)。
       shrink_horizon_min_duration: 10.0     # 收缩视界最小持续时间(秒)。
-      oscillation_recovery: true            # 是否启用振荡恢复策略。
-      oscillation_v_eps: 0.1                # 振荡检测线速度阈值(m/s)。
-      oscillation_omega_eps: 0.1            # 振荡检测角速度阈值(rad/s)。
-      oscillation_recovery_min_duration: 10.0 # 振荡恢复最小持续时间(秒)。
-      oscillation_filter_duration: 10.0     # 振荡检测滤波持续时间(秒)。
+      oscillation_recovery: false           # 禁用振荡恢复，避免误判导致反复纠偏。
+      oscillation_v_eps: 0.2                # 振荡检测线速度阈值(m/s)。
+      oscillation_omega_eps: 0.2            # 振荡检测角速度阈值(rad/s)。
+      oscillation_recovery_min_duration: 15.0 # 振荡恢复最小持续时间(秒)。
+      oscillation_filter_duration: 15.0     # 振荡检测滤波持续时间(秒)。
 
     # ----------------------------------------------------------------------
     # 备份：原 RPP (Regulated Pure Pursuit) 控制算法，保留以便回滚对比。

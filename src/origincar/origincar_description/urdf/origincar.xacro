@@ -1,35 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot name="mycar" xmlns:xacro="http://wiki.ros.org/xacro">
 
+  <!-- 基础参数 -->
   <xacro:property name="PI" value="3.1415926"/>
   <xacro:property name="Track" value="0.1682"/>
   <xacro:property name="WheelBase" value="0.189"/>
   <xacro:property name="WheelRadius" value="0.03"/>
+  <xacro:property name="WheelWidth" value="0.025"/>
   <xacro:property name="BaseBoxLength" value="0.276"/>
   <xacro:property name="BaseBoxWidth" value="0.164"/>
   <xacro:property name="BaseBoxHeight" value="0.08"/>
+  <xacro:property name="SteerLinkLength" value="0.02"/>
 
-  <xacro:macro name="wheel" params="prefix side_x side_y">
-    <link name="${prefix}_Link">
+  <!-- 前轮转向宏 -->
+  <xacro:macro name="front_wheel" params="prefix side_y">
+    <!-- 转向关节连接的link -->
+    <link name="${prefix}_steer_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.008" length="${SteerLinkLength}"/>
+        </geometry>
+        <material name="steer_mat">
+          <color rgba="0.5 0.5 0.5 1.0"/>
+        </material>
+      </visual>
+    </link>
+
+    <!-- 转向关节（绕Z轴旋转） -->
+    <joint name="${prefix}_steer_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="${prefix}_steer_link"/>
+      <origin xyz="${WheelBase / 2} ${side_y * Track / 2} ${WheelRadius}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-0.55" upper="0.55" effort="100" velocity="10"/>
+    </joint>
+
+    <!-- 驱动轮link -->
+    <link name="${prefix}_wheel_link">
       <visual>
         <origin xyz="0 0 0" rpy="${side_y * (-PI / 2)} 0 0"/>
         <geometry>
-          <cylinder radius="${WheelRadius}" length="0.025"/>
+          <cylinder radius="${WheelRadius}" length="${WheelWidth}"/>
         </geometry>
-        <material name="">
+        <material name="wheel_mat">
           <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
         </material>
       </visual>
     </link>
 
-    <joint name="${prefix}_joint" type="continuous">
-      <parent link="base_link"/>
-      <child link="${prefix}_Link"/>
-      <origin xyz="${side_x * Track / 2} ${side_y * WheelBase / 2} ${WheelRadius}" rpy="0 0 0"/>
+    <!-- 驱动关节（绕Y轴旋转） -->
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="${prefix}_steer_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <axis xyz="0 ${side_y} 0"/>
     </joint>
   </xacro:macro>
 
+  <!-- 后轮驱动宏 -->
+  <xacro:macro name="rear_wheel" params="prefix side_y">
+    <link name="${prefix}_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${side_y * (-PI / 2)} 0 0"/>
+        <geometry>
+          <cylinder radius="${WheelRadius}" length="${WheelWidth}"/>
+        </geometry>
+        <material name="wheel_mat">
+          <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <origin xyz="${-WheelBase / 2} ${side_y * Track / 2} ${WheelRadius}" rpy="0 0 0"/>
+      <axis xyz="0 ${side_y} 0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- base_footprint -->
   <link name="base_footprint"/>
 
   <joint name="base_footprint_joint" type="fixed">
@@ -38,6 +89,7 @@
     <origin xyz="0 0 ${WheelRadius}" rpy="0 0 0"/>
   </joint>
 
+  <!-- 车体 -->
   <link name="base_link">
     <visual>
       <geometry>
@@ -50,6 +102,7 @@
     </visual>
   </link>
 
+  <!-- IMU link -->
   <link name="gyro_link"/>
 
   <joint name="gyro_joint" type="fixed">
@@ -58,6 +111,7 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
+  <!-- 电路板 -->
   <link name="board_link">
     <visual>
       <geometry>
@@ -70,6 +124,13 @@
     </visual>
   </link>
 
+  <joint name="board_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="board_link"/>
+    <origin xyz="${-(BaseBoxLength - 0.200) / 2} 0 ${WheelRadius + BaseBoxHeight}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 摄像头 -->
   <link name="camera">
     <visual>
       <geometry>
@@ -88,18 +149,15 @@
     <origin xyz="${(BaseBoxLength - 0.015) / 2 - 0.01} 0 ${WheelRadius + BaseBoxHeight}" rpy="0 0 0"/>
   </joint>
 
-  <joint name="board_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="board_link"/>
-    <origin xyz="${-(BaseBoxLength - 0.200) / 2} 0 ${WheelRadius + BaseBoxHeight}" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-  </joint>
+  <!-- 前轮（转向+驱动） -->
+  <xacro:front_wheel prefix="front_left"  side_y="1"/>
+  <xacro:front_wheel prefix="front_right" side_y="-1"/>
 
-  <xacro:wheel prefix="down_left"  side_x="-1" side_y="1"/>
-  <xacro:wheel prefix="down_right" side_x="-1" side_y="-1"/>
-  <xacro:wheel prefix="up_left"    side_x="1"  side_y="1"/>
-  <xacro:wheel prefix="up_right"   side_x="1"  side_y="-1"/>
+  <!-- 后轮（仅驱动） -->
+  <xacro:rear_wheel prefix="rear_left"  side_y="1"/>
+  <xacro:rear_wheel prefix="rear_right" side_y="-1"/>
 
+  <!-- 激光雷达 -->
   <link name="laser">
     <visual>
       <origin xyz="0 0 0.015" rpy="0 0 0"/>

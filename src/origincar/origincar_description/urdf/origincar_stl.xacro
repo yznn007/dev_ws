@@ -1,34 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot name="mycar" xmlns:xacro="http://wiki.ros.org/xacro">
 
+  <!-- 基础参数 -->
+  <xacro:property name="PI" value="3.1415926"/>
   <xacro:property name="FrontWheelX" value="0.06"/>
   <xacro:property name="RearWheelX" value="0.0841"/>
   <xacro:property name="WheelY" value="0.08"/>
   <xacro:property name="WheelZ" value="0.025"/>
   <xacro:property name="base_link_Z" value="0.01"/>
+  <xacro:property name="SteerLinkLength" value="0.002"/>
+  <xacro:property name="SteerPivotX" value="0.06"/>
 
+  <material name="dark_grey">
+    <color rgba="0.2 0.2 0.2 1.0"/>
+  </material>
+  <!-- 前轮转向宏 -->
+  <xacro:macro name="front_wheel" params="prefix y axis_sign yaw steer_link_y steer_joint_y joint_y">
+    <!-- 转向关节连接的link -->
+    <link name="${prefix}_steer_link">
+      <visual>
+        <origin xyz="0 ${steer_link_y} 0" rpy="${PI/2} 0 0"/>
+        <geometry>
+          <cylinder radius="0.0018" length="${SteerLinkLength}"/>
+        </geometry>
+        <material name="dark_grey"/>
+      </visual>
+    </link>
 
-  <xacro:macro name="wheel" params="prefix x y z axis_sign">
+    <!-- 转向关节（绕Z轴旋转） -->
+    <joint name="${prefix}_steer_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="${prefix}_steer_link"/>
+      <origin xyz="${SteerPivotX} ${steer_joint_y} ${WheelZ}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-0.55" upper="0.55" effort="100" velocity="10"/>
+    </joint>
+
+    <!-- 驱动轮link -->
     <link name="${prefix}_Link">
       <visual>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 ${yaw}"/>
         <geometry>
           <mesh filename="package://origincar_description/meshes/${prefix}_Link.STL"/>
         </geometry>
-        <material name="">
-          <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
-        </material>
+        <material name="dark_grey"/>
+      </visual>
+    </link>
+
+    <!-- 驱动关节（绕Y轴旋转） -->
+    <joint name="${prefix}_joint" type="continuous">
+      <parent link="${prefix}_steer_link"/>
+      <child link="${prefix}_Link"/>
+      <origin xyz="0 ${joint_y} 0" rpy="0 0 0"/>
+      <axis xyz="0 ${axis_sign} 0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- 后轮驱动宏 -->
+  <xacro:macro name="rear_wheel" params="prefix y axis_sign yaw">
+    <link name="${prefix}_Link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 ${yaw}"/>
+        <geometry>
+          <mesh filename="package://origincar_description/meshes/${prefix}_Link.STL"/>
+        </geometry>
+        <material name="dark_grey"/>
       </visual>
     </link>
 
     <joint name="${prefix}_joint" type="continuous">
       <parent link="base_link"/>
       <child link="${prefix}_Link"/>
-      <origin xyz="${x} ${y} ${z}" rpy="0 0 0"/>
+      <origin xyz="${-RearWheelX} ${y} ${WheelZ}" rpy="0 0 0"/>
       <axis xyz="0 ${axis_sign} 0"/>
     </joint>
   </xacro:macro>
 
+  <!-- base_footprint -->
   <link name="base_footprint"/>
 
   <joint name="base_footprint_joint" type="fixed">
@@ -37,18 +85,18 @@
     <origin xyz="0 0 ${base_link_Z}" rpy="0 0 0"/>
   </joint>
 
+  <!-- 车体 -->
   <link name="base_link">
     <visual>
       <origin xyz="0 0 ${base_link_Z}" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://origincar_description/meshes/base_link.STL"/>
       </geometry>
-      <material name="rgb(54, 42, 42)">
-        <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
-      </material>
+      <material name="dark_grey"/>
     </visual>
   </link>
 
+  <!-- IMU link -->
   <link name="gyro_link"/>
 
   <joint name="gyro_joint" type="fixed">
@@ -57,20 +105,22 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <xacro:wheel prefix="down_left"  x="${-RearWheelX}" y="${WheelY}"  z="${WheelZ}" axis_sign="1"/>
-  <xacro:wheel prefix="down_right" x="${-RearWheelX}" y="${-WheelY}" z="${WheelZ}" axis_sign="-1"/>
-  <xacro:wheel prefix="up_left"    x="${FrontWheelX}" y="${WheelY}"  z="${WheelZ}" axis_sign="1"/>
-  <xacro:wheel prefix="up_right"   x="${FrontWheelX}" y="${-WheelY}" z="${WheelZ}" axis_sign="-1"/>
+  <!-- 前轮（转向+驱动） -->
+  <xacro:front_wheel prefix="up_left"  y="${WheelY}"  axis_sign="1"  yaw="${PI}" steer_link_y="0.033" steer_joint_y="0.05" joint_y="0.03"/>
+  <xacro:front_wheel prefix="up_right" y="${-WheelY}" axis_sign="-1" yaw="0" steer_link_y="-0.033" steer_joint_y="-0.05" joint_y="-0.03"/>
 
+  <!-- 后轮（仅驱动） -->
+  <xacro:rear_wheel prefix="down_left"  y="${WheelY}"  axis_sign="1"  yaw="${PI}"/>
+  <xacro:rear_wheel prefix="down_right" y="${-WheelY}" axis_sign="-1" yaw="0"/>
+
+  <!-- 激光雷达 -->
   <link name="laser">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://origincar_description/meshes/lslidar_N10.stl"/>
       </geometry>
-      <material name="dark_brown">
-        <color rgba="0.21176470588235294 0.16470588235294117 0.16470588235294117 1.0"/>
-      </material>
+      <material name="dark_grey"/>
     </visual>
   </link>
 

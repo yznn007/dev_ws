@@ -42,7 +42,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(base_pkg_dir, 'launch', 'origincar_bringup.launch.py')
         ),
-        launch_arguments={'akmcar': 'true'}.items(),
+        launch_arguments={'akmcar': 'fasle'}.items(),
     )
 
     lidar_node = Node(

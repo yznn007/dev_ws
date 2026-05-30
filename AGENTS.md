@@ -74,5 +74,22 @@ origincar_bringup 依赖 RDK X5 SDK 的 Hobot 包，需单独安装。
 - 默认链路：雷达发布 `/scan`，SLAM/Nav2 订阅 `/scan`，EKF/SLAM/Nav2 使用 `odom_combined` 与 `base_footprint`
 - 改话题、坐标系或串口时同步检查：`origincar_base/launch/base_serial.launch.py`、`origincar_base/config/ekf.yaml`、`lslidar_driver/params/*.yaml`、`origincar_slam/config/slam_params.yaml`、`origincar_nav/config/nav2_params.yaml`
 
+## 导航栈特殊配置
+- 局部规划器使用 **TEB**（非默认 RPP），配置了阿克曼运动学约束（最小转弯半径 0.4m）
+- 全局规划器使用 **Hybrid A***（非默认 NavFn）
+- 机器人轮廓已定义为多边形（非圆形）：`[[0.138, 0.082], [0.138, -0.082], [-0.138, -0.082], [-0.138, 0.082]]`
+- RPP 备份配置已注释在 `nav2_params.yaml` 中，可快速回滚对比
+
+## 坐标系与话题链路
+```
+map → odom_combined → base_footprint → laser
+      (EKF 输出)      (底盘基座)      (雷达)
+```
+- 关键话题：`/scan`（雷达）、`cmd_vel`（速度控制）、`ackermann_cmd`（转向控制）、`odom_combined`（里程计）、`/imu/data`（IMU）
+
+## 其他资源
+- `origincar_qr` 包有独立 AGENTS.md，详见 `src/origincar/origincar_qr/AGENTS.md`
+- DNN 模型配置（供 RDK X5 Hobot 推理节点使用）位于 `config/` 和 `src/origincar/config/`
+
 ## Git 环境
 - 全局 Git 身份：`user.name=yznn007`，`user.email=3181666393@qq.com`；提交前按项目要求确认身份

@@ -33,7 +33,7 @@ def generate_launch_description():
 
         launch_ros.actions.Node(
             condition=IfCondition(akmcar),
-            package='teb_local_planner',
+            package='origincar_base',
             executable='cmd_vel_to_ackermann_drive.py',
             name='cmd_vel_to_ackermann_drive',
             parameters=[{
@@ -41,7 +41,7 @@ def generate_launch_description():
                 'frame_id': 'odom_combined',
                 'twist_cmd_topic': '/cmd_vel',
                 'ackermann_cmd_topic': '/ackermann_cmd',
-                'cmd_angle_instead_rotvel': False,
+                'cmd_angle_instead_rotvel': True,
             }],
         ),
 

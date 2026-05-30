@@ -51,7 +51,7 @@ if __name__ == '__main__':
   ackermann_cmd_topic = node.declare_parameter("ackermann_cmd_topic", "/ackermann_cmd").value
   wheelbase = node.declare_parameter("wheelbase", 1.0).value
   frame_id = node.declare_parameter('frame_id', 'odom').value
-  cmd_angle_instead_rotvel = node.declare_parameter('cmd_angle_instead_rotvel', False).value
+  cmd_angle_instead_rotvel = node.declare_parameter('cmd_angle_instead_rotvel', True).value
 
   node.create_subscription(Twist, twist_cmd_topic, cmd_callback, 1)
   pub = node.create_publisher(AckermannDriveStamped, ackermann_cmd_topic, 1)

@@ -168,12 +168,12 @@ controller_server:
       max_vel_x: 0.4                        # 最大前进速度(m/s)。
       max_vel_x_backwards: 0.2              # 最大倒车速度(m/s)。
       max_vel_y: 0.0                        # 横向速度。阿克曼必须为 0。
-      max_vel_theta: 7.5                    # 最大角速度(rad/s)，配合 min_turning_radius 形成转弯约束。
+      max_vel_theta: 0.55                   # 最大角速度(rad/s)，实测转向达到最大值时的 angular.z。
       acc_lim_x: 0.5                        # 线加速度上限(m/s^2)。
       acc_lim_theta: 4.0                    # 角加速度上限(rad/s^2)。
       min_turning_radius: 0.4               # 最小转弯半径(米)，必须与硬件一致 / 与全局规划器同步。
       wheelbase: 0.143                      # 前后轴距(米)。仅 cmd_angle_instead_rotvel=true 时生效，目前未启用。
-      cmd_angle_instead_rotvel: false       # 是否将角速度替换为转向角输出。当前由下游脚本换算，保持 false。
+      cmd_angle_instead_rotvel: true        # 底盘直接接收转向角，angular.z 即为转向角(弧度)。
       is_footprint_dynamic: false           # 车体轮廓是否动态变化。通常设为 false。
 
       footprint_model:                      # TEB 轨迹优化使用的车体外廓，与 costmap footprint 保持一致。
@@ -467,8 +467,8 @@ velocity_smoother:
     smoothing_frequency: 20.0               # 速度平滑指令输出频率。建议与局部控制器同步。
     scale_velocities: false                 # 超限时是否按比例缩小线速度和角速度。推荐: false (开启可能影响阿克曼运动逻辑)。
     feedback: "OPEN_LOOP"                   # 反馈模式。推荐: OPEN_LOOP (开环，无需读取真实轮速)。
-    max_velocity: [0.5, 0.0, 1.5]           # 最大速度限制 [最大直线速度, 横向速度, 最大角速度]。
-    min_velocity: [-0.2, 0.0, -1.5]         # 最小速度限制 [最大倒车速度, 横向速度, 最大角速度]。
+    max_velocity: [0.5, 0.0, 0.55]           # 最大速度限制 [最大直线速度, 横向速度, 最大角速度]。
+    min_velocity: [-0.2, 0.0, -0.55]         # 最小速度限制 [最大倒车速度, 横向速度, 最大角速度]。
     max_accel: [1.0, 0.0, 2.0]              # 最大加速度 [直线加速度, 横向加速度, 角加速度]。
     max_decel: [-1.5, 0.0, -2.5]            # 最大减速度(刹车) [直线减速度, 横向减速度, 角减速度]。
     odom_topic: /odom_combined              # 里程计话题(仅闭环模式有效)。

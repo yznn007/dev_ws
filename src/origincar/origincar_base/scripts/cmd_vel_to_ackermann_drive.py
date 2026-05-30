@@ -12,9 +12,9 @@ class CmdVel2AckermannDriveNode(Node):
         super().__init__('cmd_vel_to_ackermann_drive')
         self.publisher = self.create_publisher(AckermannDriveStamped, '/ackermann_cmd', QoSProfile(depth=10))
         self.subscription = self.create_subscription(Twist, 'cmd_vel', self.cmd_callback, QoSProfile(depth=10))
-        self.wheelbase = 0.143  #轴距
-        self.frame_id = 'odom_combined'
-        self.cmd_angle_instead_rotvel = False
+        self.wheelbase = self.declare_parameter('wheelbase', 0.143).value
+        self.frame_id = self.declare_parameter('frame_id', 'odom_combined').value
+        self.cmd_angle_instead_rotvel = self.declare_parameter('cmd_angle_instead_rotvel', False).value
 
     def convert_trans_rot_vel_to_steering_angle(self, vel, omega):
         if omega == 0 or vel == 0:

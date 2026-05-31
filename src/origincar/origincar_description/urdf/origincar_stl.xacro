@@ -116,7 +116,7 @@
   <!-- 激光雷达 -->
   <link name="laser">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0.03 0 0"/>
       <geometry>
         <mesh filename="package://origincar_description/meshes/lslidar_N10.stl"/>
       </geometry>

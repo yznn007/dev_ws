@@ -346,8 +346,7 @@ origincar_base::origincar_base()
   memset(&Send_Data, 0, sizeof(Send_Data));
   memset(&Mpu6050_Data, 0, sizeof(Mpu6050_Data));
 
-  int serial_baud_rate = 115200;
-
+  this->declare_parameter<int>("serial_baud_rate", 115200);
   this->declare_parameter<std::string>("usart_port_name", "/dev/ttyCH343USB0");
   this->declare_parameter<std::string>("cmd_vel", "cmd_vel");
   this->declare_parameter<std::string>("akm_cmd_vel", "ackermann_cmd");

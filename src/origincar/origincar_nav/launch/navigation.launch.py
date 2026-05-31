@@ -15,8 +15,8 @@ def generate_launch_description():
     lidar_pkg_dir = get_package_share_directory('lslidar_driver')
     nav2_pkg_dir = get_package_share_directory('nav2_bringup')
     
-#    default_map = os.path.join(slam_pkg_dir, 'map', 'map_v0.0.yaml')
-    default_map = os.path.join(slam_pkg_dir, 'map', 'map_test.yaml')
+    default_map = os.path.join(slam_pkg_dir, 'map', 'map_v0.1.yaml')
+#    default_map = os.path.join(slam_pkg_dir, 'map', 'map_test.yaml')
     default_params = os.path.join(nav_pkg_dir, 'config', 'nav2_params.yaml')
     default_bt_nav_to_pose = os.path.join(
         nav_pkg_dir,
@@ -42,7 +42,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(base_pkg_dir, 'launch', 'origincar_bringup.launch.py')
         ),
-        launch_arguments={'akmcar': 'true'}.items(),
+        launch_arguments={'akmcar': 'fasle'}.items(),
     )
 
     lidar_node = Node(

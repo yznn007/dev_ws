@@ -36,6 +36,13 @@ def generate_launch_description():
             package='origincar_base',
             executable='cmd_vel_to_ackermann_drive.py',
             name='cmd_vel_to_ackermann_drive',
+            parameters=[{
+                'wheelbase': 0.143,
+                'frame_id': 'odom_combined',
+                'twist_cmd_topic': '/cmd_vel',
+                'ackermann_cmd_topic': '/ackermann_cmd',
+                'cmd_angle_instead_rotvel': True,
+            }],
         ),
 
         launch_ros.actions.Node(

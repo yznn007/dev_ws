@@ -9,7 +9,7 @@ def generate_launch_description():
     xacro_file = os.path.join(
         get_package_share_directory('origincar_description'),
         'urdf',
-        'origincar.xacro'
+        'origincar_stl.xacro'
     )
 
     robot_description_content = ParameterValue(

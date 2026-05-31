@@ -31,6 +31,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'clahe_tile_size', default_value='8',
             description='CLAHE tile grid size'),
+        DeclareLaunchArgument(
+            'use_raw', default_value='false',
+            description='Skip all preprocessing, decode raw grayscale image'),
+        DeclareLaunchArgument(
+            'crop', default_value='1',
+            description='Center crop factor: 1=full, 2=half, 3=1/3, ...'),
 
         Node(
             package='origincar_qr',
@@ -47,6 +53,8 @@ def generate_launch_description():
                 'enable_multiscale': LaunchConfiguration('enable_multiscale'),
                 'clahe_clip_limit': LaunchConfiguration('clahe_clip_limit'),
                 'clahe_tile_size': LaunchConfiguration('clahe_tile_size'),
+                'use_raw': LaunchConfiguration('use_raw'),
+                'crop': LaunchConfiguration('crop'),
             }],
         ),
     ])

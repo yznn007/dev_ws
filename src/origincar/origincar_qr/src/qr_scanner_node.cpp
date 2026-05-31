@@ -29,6 +29,8 @@ public:
     this->declare_parameter("enable_multiscale", true);
     this->declare_parameter("clahe_clip_limit", 2.0);
     this->declare_parameter("clahe_tile_size", 8);
+    this->declare_parameter("use_raw", false);
+    this->declare_parameter("crop", 1);
 
     int camera_id   = this->get_parameter("camera_id").as_int();
     int req_w       = this->get_parameter("frame_width").as_int();
@@ -38,6 +40,9 @@ public:
     enable_multiscale_ = this->get_parameter("enable_multiscale").as_bool();
     double clahe_clip = this->get_parameter("clahe_clip_limit").as_double();
     int clahe_tile  = this->get_parameter("clahe_tile_size").as_int();
+    use_raw_ = this->get_parameter("use_raw").as_bool();
+    crop_factor_ = this->get_parameter("crop").as_int();
+    if (crop_factor_ < 1) crop_factor_ = 1;
 
     // ── Open camera (force V4L2 backend — avoids GStreamer issues) ──
     cap_.open(camera_id, cv::CAP_V4L2);
@@ -70,7 +75,7 @@ public:
     actual_h_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
 
     // Sanity check
-    if (actual_w_ > 3840 || actual_h_ > 2160 ||
+    if (actual_w_ > 4160 || actual_h_ > 3120 ||
         actual_w_ <= 0 || actual_h_ <= 0) {
       RCLCPP_WARN(this->get_logger(),
         "Resolution probe returned %dx%d, falling back to 1920x1080",
@@ -110,9 +115,11 @@ public:
 
     RCLCPP_INFO(this->get_logger(),
       "QR scanner started | rate=%.1f Hz | %dx%d | "
-      "multiscale=%s | CLAHE=%.1f/%d | preview=%s",
+      "multiscale=%s | raw=%s | crop=%d | CLAHE=%.1f/%d | preview=%s",
       rate, actual_w_, actual_h_,
       enable_multiscale_ ? "on" : "off",
+      use_raw_ ? "on" : "off",
+      crop_factor_,
       clahe_clip, clahe_tile,
       show_preview_ ? "on" : "off");
   }
@@ -181,50 +188,69 @@ private:
       return;
     }
 
+    // ── Center crop ──
+    if (crop_factor_ > 1) {
+      int crop_w = frame.cols / crop_factor_;
+      int crop_h = frame.rows / crop_factor_;
+      int x = (frame.cols - crop_w) / 2;
+      int y = (frame.rows - crop_h) / 2;
+      frame = frame(cv::Rect(x, y, crop_w, crop_h));
+    }
+
     // Convert to grayscale once
     cv::Mat gray;
     cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 
     bool found = false;
+    cv::Mat clahe_img;  // filled only when !use_raw_, for later passes & preview
 
-    // ─── Pass 1: CLAHE ───
-    cv::Mat clahe_img = preprocess_clahe(gray);
-    found = try_decode(clahe_img, "CLAHE");
+    if (use_raw_) {
+      // ─── Pass 0: Raw grayscale, no preprocessing ───
+      found = try_decode(gray, "Raw");
+    } else {
+      // ─── Pass 1: CLAHE ───
+      clahe_img = preprocess_clahe(gray);
+      found = try_decode(clahe_img, "CLAHE");
 
-    // ─── Pass 2: CLAHE + sharpen ───
-    if (!found && enable_multiscale_) {
-      cv::Mat sharp = preprocess_sharpen(clahe_img);
-      found = try_decode(sharp, "CLAHE+Sharp");
-    }
+      // ─── Pass 2: CLAHE + sharpen ───
+      if (!found && enable_multiscale_) {
+        cv::Mat sharp = preprocess_sharpen(clahe_img);
+        found = try_decode(sharp, "CLAHE+Sharp");
+      }
 
-    // ─── Pass 3: Adaptive binary ───
-    if (!found && enable_multiscale_) {
-      cv::Mat binary = preprocess_binary(gray);
-      found = try_decode(binary, "Binary");
-    }
+      // ─── Pass 3: Adaptive binary ───
+      if (!found && enable_multiscale_) {
+        cv::Mat binary = preprocess_binary(gray);
+        found = try_decode(binary, "Binary");
+      }
 
-    // ─── Pass 4: CLAHE + binary ───
-    if (!found && enable_multiscale_) {
-      cv::Mat bin_clahe = preprocess_binary(clahe_img);
-      found = try_decode(bin_clahe, "CLAHE+Binary");
-    }
+      // ─── Pass 4: CLAHE + binary ───
+      if (!found && enable_multiscale_) {
+        cv::Mat bin_clahe = preprocess_binary(clahe_img);
+        found = try_decode(bin_clahe, "CLAHE+Binary");
+      }
 
-    // ─── Pass 5–6: Downscale pyramid ───
-    if (!found && enable_multiscale_) {
-      for (double scale : {0.75, 0.5}) {
-        cv::Mat down;
-        cv::resize(clahe_img, down, cv::Size(), scale, scale,
-          cv::INTER_AREA);
-        found = try_decode(down,
-          "CLAHE@" + std::to_string(static_cast<int>(scale * 100)) + "%");
-        if (found) break;
+      // ─── Pass 5–6: Downscale pyramid ───
+      if (!found && enable_multiscale_) {
+        for (double scale : {0.75, 0.5}) {
+          cv::Mat down;
+          cv::resize(clahe_img, down, cv::Size(), scale, scale,
+            cv::INTER_AREA);
+          found = try_decode(down,
+            "CLAHE@" + std::to_string(static_cast<int>(scale * 100)) + "%");
+          if (found) break;
+        }
       }
     }
 
-    // ── Preview: CLAHE-enhanced image ──
+    // ── Preview ──
     if (show_preview_) {
       cv::Mat preview;
-      cv::cvtColor(clahe_img, preview, cv::COLOR_GRAY2BGR);
+      if (use_raw_) {
+        cv::cvtColor(gray, preview, cv::COLOR_GRAY2BGR);
+      } else {
+        cv::cvtColor(clahe_img, preview, cv::COLOR_GRAY2BGR);
+      }
 
       cv::Scalar status_color = found ? cv::Scalar(0, 255, 0)
                                       : cv::Scalar(0, 0, 255);
@@ -249,6 +275,8 @@ private:
 
   bool show_preview_ = false;
   bool enable_multiscale_ = true;
+  bool use_raw_ = false;
+  int crop_factor_ = 1;
   int actual_w_ = 1280;
   int actual_h_ = 720;
 };

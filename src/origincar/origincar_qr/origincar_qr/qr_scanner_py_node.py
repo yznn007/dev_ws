@@ -30,6 +30,8 @@ class QRScannerNode(Node):
         self.declare_parameter('enable_multiscale', True)
         self.declare_parameter('clahe_clip_limit', 2.0)
         self.declare_parameter('clahe_tile_size', 8)
+        self.declare_parameter('use_raw', False)
+        self.declare_parameter('crop', 1)
 
         camera_id = self.get_parameter('camera_id').value
         req_w = self.get_parameter('frame_width').value
@@ -39,6 +41,10 @@ class QRScannerNode(Node):
         self.enable_multiscale = self.get_parameter('enable_multiscale').value
         clahe_clip = self.get_parameter('clahe_clip_limit').value
         clahe_tile = self.get_parameter('clahe_tile_size').value
+        self.use_raw = self.get_parameter('use_raw').value
+        self.crop = self.get_parameter('crop').value
+        if self.crop < 1:
+            self.crop = 1
 
         # ── Open camera (force V4L2 to avoid GStreamer issues) ──
         self.cap = cv2.VideoCapture(camera_id, cv2.CAP_V4L2)
@@ -108,6 +114,8 @@ class QRScannerNode(Node):
             f'QR scanner started | rate={rate} Hz | '
             f'{self.actual_w}x{self.actual_h} | '
             f'multiscale={self.enable_multiscale} | '
+            f'raw={self.use_raw} | '
+            f'crop={self.crop} | '
             f'CLAHE={clahe_clip}/{clahe_tile} | '
             f'preview={self.show_preview}')
 
@@ -159,46 +167,65 @@ class QRScannerNode(Node):
         if not ret or frame is None:
             return
 
+        # ── Center crop ──
+        if self.crop > 1:
+            h, w = frame.shape[:2]
+            crop_w = w // self.crop
+            crop_h = h // self.crop
+            x = (w - crop_w) // 2
+            y = (h - crop_h) // 2
+            frame = frame[y:y + crop_h, x:x + crop_w]
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         found = False
+        enhanced = None  # filled only when not use_raw, for preview
 
-        # ── Pass 1: CLAHE → pyzbar ──
-        enhanced = self.preprocess_clahe(gray)
-        found = self.try_pyzbar(enhanced, 'CLAHE')
+        if self.use_raw:
+            # ── Pass 0: Raw grayscale, no preprocessing ──
+            found = self.try_pyzbar(gray, 'Raw')
+        else:
+            # ── Pass 1: CLAHE → pyzbar ──
+            enhanced = self.preprocess_clahe(gray)
+            found = self.try_pyzbar(enhanced, 'CLAHE')
 
-        # ── Pass 2: CLAHE + sharpen → pyzbar ──
-        if not found and self.enable_multiscale:
-            sharp = self.preprocess_sharpen(enhanced)
-            found = self.try_pyzbar(sharp, 'CLAHE+Sharp')
+            # ── Pass 2: CLAHE + sharpen → pyzbar ──
+            if not found and self.enable_multiscale:
+                sharp = self.preprocess_sharpen(enhanced)
+                found = self.try_pyzbar(sharp, 'CLAHE+Sharp')
 
-        # ── Pass 3: Adaptive binary → pyzbar ──
-        if not found and self.enable_multiscale:
-            binary = self.preprocess_binary(gray)
-            found = self.try_pyzbar(binary, 'Binary')
+            # ── Pass 3: Adaptive binary → pyzbar ──
+            if not found and self.enable_multiscale:
+                binary = self.preprocess_binary(gray)
+                found = self.try_pyzbar(binary, 'Binary')
 
-        # ── Pass 4: CLAHE + binary → pyzbar ──
-        if not found and self.enable_multiscale:
-            bin_clahe = self.preprocess_binary(enhanced)
-            found = self.try_pyzbar(bin_clahe, 'CLAHE+Binary')
+            # ── Pass 4: CLAHE + binary → pyzbar ──
+            if not found and self.enable_multiscale:
+                bin_clahe = self.preprocess_binary(enhanced)
+                found = self.try_pyzbar(bin_clahe, 'CLAHE+Binary')
 
-        # ── Pass 5: cv2.QRCodeDetector (extreme angles) ──
-        if not found and self.enable_multiscale:
-            found = self.try_cv2_qr(frame)
+            # ── Pass 5: cv2.QRCodeDetector (extreme angles) ──
+            if not found and self.enable_multiscale:
+                found = self.try_cv2_qr(frame)
 
-        # ── Pass 6–7: Downscale pyramid ──
-        if not found and self.enable_multiscale:
-            for scale in (0.75, 0.5):
-                h, w = enhanced.shape[:2]
-                down = cv2.resize(enhanced,
-                                  (int(w * scale), int(h * scale)),
-                                  interpolation=cv2.INTER_AREA)
-                found = self.try_pyzbar(down, f'CLAHE@{int(scale*100)}%')
-                if found:
-                    break
+            # ── Pass 6–7: Downscale pyramid ──
+            if not found and self.enable_multiscale:
+                for scale in (0.75, 0.5):
+                    h, w = enhanced.shape[:2]
+                    down = cv2.resize(enhanced,
+                                      (int(w * scale), int(h * scale)),
+                                      interpolation=cv2.INTER_AREA)
+                    found = self.try_pyzbar(down, f'CLAHE@{int(scale*100)}%')
+                    if found:
+                        break
 
-        # ── Preview: CLAHE image (what the decoder sees) ──
+        # ── Preview ──
         if self.show_preview:
-            preview = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
+            if self.use_raw:
+                preview = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+                mode_label = 'Raw'
+            else:
+                preview = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
+                mode_label = 'CLAHE'
 
             color = (0, 255, 0) if found else (0, 0, 255)
             radius = 16 if found else 8
@@ -206,7 +233,7 @@ class QRScannerNode(Node):
 
             status = 'FOUND' if found else 'scanning...'
             cv2.putText(preview,
-                        f'{self.actual_w}x{self.actual_h}  CLAHE  {status}',
+                        f'{self.actual_w}x{self.actual_h}  {mode_label}  {status}',
                         (48, 30), cv2.FONT_HERSHEY_SIMPLEX,
                         0.55, (255, 255, 255), 2)
 

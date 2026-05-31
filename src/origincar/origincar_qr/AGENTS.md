@@ -54,6 +54,8 @@ pip install opencv-python pyzbar
 | `scan_rate_hz` | double | 10.0 | 扫描循环频率 (Hz) |
 | `show_preview` | bool | false | 是否显示 OpenCV 预览窗口 |
 | `enable_multiscale` | bool | true | 启用多级预处理（CLAHE/Sharpen/Binary/金字塔） |
+| `use_raw` | bool | false | 跳过所有预处理，直接在原始灰度图上解码 |
+| `crop` | int | 1 | 中心裁剪因子：1=全图，2=半幅，3=1/3，4=1/4，… |
 | `clahe_clip_limit` | double | 2.0 | CLAHE 对比度限幅 |
 | `clahe_tile_size` | int | 8 | CLAHE 网格尺寸 |
 

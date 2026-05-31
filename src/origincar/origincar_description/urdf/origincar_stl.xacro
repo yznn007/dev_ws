@@ -7,13 +7,22 @@
   <xacro:property name="RearWheelX" value="0.0841"/>
   <xacro:property name="WheelY" value="0.08"/>
   <xacro:property name="WheelZ" value="0.025"/>
-  <xacro:property name="base_link_Z" value="0.01"/>
+  <xacro:property name="base_link_Z" value="0.02"/>
   <xacro:property name="SteerLinkLength" value="0.002"/>
   <xacro:property name="SteerPivotX" value="0.06"/>
+
+  <material name="black">
+    <color rgba="0.1 0.1 0.1 1.0"/>
+  </material>
 
   <material name="dark_grey">
     <color rgba="0.2 0.2 0.2 1.0"/>
   </material>
+
+  <material name="pink">
+    <color rgba="1.0 0.75 0.8 1.0"/>
+  </material>
+
   <!-- 前轮转向宏 -->
   <xacro:macro name="front_wheel" params="prefix y axis_sign yaw steer_link_y steer_joint_y joint_y">
     <!-- 转向关节连接的link -->
@@ -41,9 +50,9 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 ${yaw}"/>
         <geometry>
-          <mesh filename="package://origincar_description/meshes/${prefix}_Link.STL"/>
+          <mesh filename="package://origincar_description/meshes/origincar_wheel.STL"/>
         </geometry>
-        <material name="dark_grey"/>
+        <material name="black"/>
       </visual>
     </link>
 
@@ -62,9 +71,9 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 ${yaw}"/>
         <geometry>
-          <mesh filename="package://origincar_description/meshes/${prefix}_Link.STL"/>
+          <mesh filename="package://origincar_description/meshes/origincar_wheel.STL"/>
         </geometry>
-        <material name="dark_grey"/>
+        <material name="black"/>
       </visual>
     </link>
 
@@ -79,7 +88,7 @@
   <!-- base_footprint -->
   <link name="base_footprint"/>
 
-  <joint name="base_footprint_joint" type="fixed">
+  <joint name="base_link_joint" type="fixed">
     <parent link="base_footprint"/>
     <child link="base_link"/>
     <origin xyz="0 0 ${base_link_Z}" rpy="0 0 0"/>
@@ -88,13 +97,30 @@
   <!-- 车体 -->
   <link name="base_link">
     <visual>
-      <origin xyz="0 0 ${base_link_Z}" rpy="0 0 0"/>
+      <origin xyz="0.0125 0 0.04" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://origincar_description/meshes/base_link.STL"/>
+        <mesh filename="package://origincar_description/meshes/origincar_base.STL"/>
       </geometry>
-      <material name="dark_grey"/>
+      <material name="black"/>
     </visual>
   </link>
+
+  <!-- 车顶 -->
+  <link name="top_link">
+    <visual>
+      <origin xyz="-0.018 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://origincar_description/meshes/origincar_top.stl"/>
+      </geometry>
+      <material name="pink"/>
+    </visual>
+  </link>
+
+  <joint name="top_link_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="top_link"/>
+    <origin xyz="0 0 0.0968" rpy="0 0 0"/>
+  </joint>
 
   <!-- IMU link -->
   <link name="gyro_link"/>
@@ -116,7 +142,7 @@
   <!-- 激光雷达 -->
   <link name="laser">
     <visual>
-      <origin xyz="0 0 0" rpy="0.03 0 0"/>
+      <origin xyz="0.02 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://origincar_description/meshes/lslidar_N10.stl"/>
       </geometry>
@@ -125,9 +151,25 @@
   </link>
 
   <joint name="laser_joint" type="fixed">
-    <parent link="base_link"/>
+    <parent link="top_link"/>
     <child link="laser"/>
-    <origin xyz="0.02 0.02 0.145" rpy="0 0 4.755"/>
+    <origin xyz="-0.01 0 0.048" rpy="0 0 0"/>
   </joint>
 
+<!-- 摄像头 -->
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://origincar_description/meshes/origincar_camera.stl"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.09 0 0.09" rpy="0 0 0"/>
+  </joint>
 </robot>

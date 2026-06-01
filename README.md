@@ -202,6 +202,8 @@ ros2 launch origincar_bringup usb_websocket_display.launch.py
 ros2 run nav2_map_server map_saver_cli -f ~/dev_ws/src/origincar/origincar_slam/map/default_map
 
 # 调试命令
+ros2 run demo_nodes_cpp talker
+ros2 run demo_nodes_py listener
 ros2 topic echo /ackermann_cmd    # 查看转向角
 ros2 topic echo /cmd_vel          # 查看 TEB 输出
 ros2 topic echo /odom_combined    # 查看里程计

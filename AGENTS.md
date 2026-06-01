@@ -76,9 +76,12 @@ origincar_bringup 依赖 RDK X5 SDK 的 Hobot 包，需单独安装。
 
 ## 导航栈特殊配置
 - 局部规划器使用 **TEB**（非默认 RPP），配置了阿克曼运动学约束（最小转弯半径 0.4m）
-- 全局规划器使用 **Hybrid A***（非默认 NavFn）
+- 全局规划器使用 **Hybrid A***（非默认 NavFn），运动模型 `DUBIN`（仅前进）；切换 `REEDS_SHEPP` 可启用倒车规划
 - 机器人轮廓已定义为多边形（非圆形）：`[[0.138, 0.082], [0.138, -0.082], [-0.138, -0.082], [-0.138, 0.082]]`
 - RPP 备份配置已注释在 `nav2_params.yaml` 中，可快速回滚对比
+- 行为树使用自定义阿克曼版本：`origincar_nav/behavior_trees/navigate_to_pose_ackermann.xml`（单点）、`navigate_through_poses_ackermann.xml`（多点）
+- TEB 输出 `cmd_vel` 经 `cmd_vel_to_ackermann_drive.py` 转换为 `ackermann_cmd`，参数 `cmd_angle_instead_rotvel: true` 表示 `angular.z` 直接作为转向角（弧度）
+- `nav2_params.yaml` 中 `bt_navigator.default_nav_to_pose_bt_xml` 使用**绝对路径** `/home/sunrise/dev_ws/...`；移植或换用户时必须同步修改
 
 ## 坐标系与话题链路
 ```
@@ -86,6 +89,11 @@ map → odom_combined → base_footprint → laser
       (EKF 输出)      (底盘基座)      (雷达)
 ```
 - 关键话题：`/scan`（雷达）、`cmd_vel`（速度控制）、`ackermann_cmd`（转向控制）、`odom_combined`（里程计）、`/imu/data`（IMU）
+
+## SLAM 模式切换
+- `origincar_slam/config/slam_params.yaml` 中 `mode` 参数可切换 `mapping`（建图）/ `localization`（定位）
+- 建图完成后用 `ros2 run nav2_map_server map_saver_cli -f <路径>` 保存地图
+- 导航默认地图在 `origincar_slam/map/map_v0.1.yaml`；`navigation.launch.py` 支持 `map:=` 参数覆盖
 
 ## 其他资源
 - `origincar_qr` 包有独立 AGENTS.md，详见 `src/origincar/origincar_qr/AGENTS.md`
